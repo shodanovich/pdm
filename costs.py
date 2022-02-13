@@ -39,7 +39,7 @@ class Costs(QWidget):
         # управляющие кнопки
         btn_insert = QPushButton("Добавить (Ins)")
         btn_insert.setShortcut('Ins')
-        btn_insert.clicked.connect(self.add_record)
+        btn_insert.clicked.connect(self.add_row)
         btn_delete = QPushButton('Удалить (Del)')
         btn_delete.setShortcut('Del')
         btn_delete.clicked.connect(self.delete_record)
@@ -74,6 +74,7 @@ class Costs(QWidget):
         self.setLayout(vbox)
         self.show()
 
+    # выбрали изделие, собираем и добавляем затраты на него
     def change_prod(self):
         txt = self.prod_box.currentText()
         tpl = self.code_measure(txt)        #(код, единица измерения)
@@ -94,7 +95,6 @@ class Costs(QWidget):
             cursor.execute(select_query)
             result = cursor.fetchall()
             conn.commit()
-
         except Error as e:
             print("Error: ", e)
         finally:
@@ -102,16 +102,9 @@ class Costs(QWidget):
 
         self.table.setRowCount(0)
         for row in result:
-            i = self.table.rowCount()
-            self.table.insertRow(i)
-            self.table.setItem(i,0,QtWidgets.QTableWidgetItem(row[0]))
-            # вставляем во второй столбец кнопку
-            self.btn_choice = QPushButton('...')
-            self.btn_choice.clicked.connect(self.btn_choice_clicked)
-            self.btn_choice.setSizePolicy(QtWidgets.QSizePolicy.Ignored,
-                                          QtWidgets.QSizePolicy.Maximum)
-            self.table.setCellWidget(i, 1, self.btn_choice)
-            self.table.setItem(i, 2, QtWidgets.QTableWidgetItem(row[1]))
+            i = self.add_row()
+            self.table.setItem(i,0,QtWidgets.QTableWidgetItem(str(row[0])))
+            self.table.setItem(i, 2, QtWidgets.QTableWidgetItem(str(row[1])))
             self.table.setItem(i, 3, QtWidgets.QTableWidgetItem(str(row[2])))
 
     # по нажатию кнопки (...)
@@ -132,17 +125,22 @@ class Costs(QWidget):
                 self.res_box.addItem(res[1])
 
     # добавляем строку в QTableWidget
-    def add_record(self):
-        rowPosition = self.table.rowCount()
-        self.table.insertRow(rowPosition)
-        self.table.setCurrentCell(rowPosition,0)
+    def add_row(self):
+        i = self.table.rowCount()
+        self.table.insertRow(i)
+        self.table.setCurrentCell(i,0)
         item = self.table.currentItem()
-        # вставляем во второй столбец кнопку
+        self.insert_btn_choice(i,1)
+        return i
+
+    # вставляем кнопку
+    def insert_btn_choice(self,i, j):
         self.btn_choice = QPushButton('...')
         self.btn_choice.setSizePolicy(QtWidgets.QSizePolicy.Ignored,
                                QtWidgets.QSizePolicy.Maximum)
-        self.table.setCellWidget(rowPosition,1,self.btn_choice)
+        self.table.setCellWidget(i,j,self.btn_choice)
         self.btn_choice.clicked.connect(self.btn_choice_clicked)
+        #self.btn_choice.click()
 
     # удаляем строку из QTableWidget
     def delete_record(self):
@@ -215,13 +213,13 @@ class Costs(QWidget):
         self.save_table()
         self.close()
 
-    # горячие клавиши. Переопределяем метод keyPressEvent
-    def keyPressEvent(self, event: QtGui.QKeyEvent):
-        if event.key() == QtCore.Qt.Key_Insert:  # Insert
-            self.add_record()  # Добавить запись
-        elif event.key() == QtCore.Qt.Key_Delete:  # Delete
-            self.delete_record()  # Удалить запись
-        elif event.key() == QtCore.Qt.Key_F10:  # сохранить таблицу в БД
-            self.save_table()
-        elif event.key() == QtCore.Qt.Key_Escape:  # выход
-            self.close()
+    # # горячие клавиши. Переопределяем метод keyPressEvent
+    # def keyPressEvent(self, event: QtGui.QKeyEvent):
+    #     if event.key() == QtCore.Qt.Key_Insert:  # Insert
+    #         self.add_row()  # Добавить запись
+    #     elif event.key() == QtCore.Qt.Key_Delete:  # Delete
+    #         self.delete_record()  # Удалить запись
+    #     elif event.key() == QtCore.Qt.Key_F10:  # сохранить таблицу в БД
+    #         self.save_table()
+    #     elif event.key() == QtCore.Qt.Key_Escape:  # выход
+    #         self.close()

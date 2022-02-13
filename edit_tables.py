@@ -10,10 +10,6 @@ class EditTables(QWidget):
 
     def build(self,table_name):
         self.setGeometry(300, 300, 400, 400)
-        # имя таблицы объявляем глобальным. Это нужно, чтобы работало
-        # CTRL+S для сохранения QTableWidget
-        global tab_name
-        tab_name = table_name
         # читаем параметры таблицы из config.ini (модуль mysql_dbconfig_io)
         # в config.ini собраны параметры таблицы в MySql и в QTableWidget
         params = get_db_params(filename='config.ini', section=table_name)
@@ -47,11 +43,7 @@ class EditTables(QWidget):
         for row in lst_table:
             self.table.insertRow(i)
             for j in range(0,columncount):
-                if j==0:
-                    req = str(row[j])   # id целый в базе
-                else:
-                    req = row[j]
-                self.table.setItem(i, j, QtWidgets.QTableWidgetItem(req))
+                self.table.setItem(i, j, QtWidgets.QTableWidgetItem(str(row[j])))
             i += 1
         self.table.blockSignals(False)  # разблокируем сигналы
 
