@@ -4,9 +4,8 @@ from PyQt5.QtGui import QIcon
 
 import create_DB    # создание базы данных
 import edit_res     # редактирование ресурсов
-import edit_prof    # справочник профессий
 import costs        # нормативы затрат
-import sou          # сменный отчет участка
+import shift_rep          # сменный отчет участка
 
 class Pdm(QMainWindow):
     def __init__(self):
@@ -33,19 +32,7 @@ class Pdm(QMainWindow):
         edit_res_action = QAction('&Редактирование ресурсов', self)
         edit_res_action.triggered.connect(self.editRes)
         res_menu.addAction(edit_res_action)
-        # закупки материалов, полуфабрикатов
-        purchase_action = QAction('&Закупки материалов',self)
-        res_menu.addAction(purchase_action)
-        # отчет по запасам материалов
-        inventorys_action = QAction('&Отчет по запасам сырья и материалов',self)
-        res_menu.addAction(inventorys_action)
 
-        # Сотрудники
-        cust_menu = menubar.addMenu('&Сотрудники')
-        # профессии
-        prof_action = QAction('&Профессии',self)
-        prof_action.triggered.connect(self.editProf)
-        cust_menu.addAction(prof_action)
         # меню нормативов
         norm_menu = menubar.addMenu('&Нормативы')
         # нормативы затрат
@@ -57,7 +44,7 @@ class Pdm(QMainWindow):
         prodaction_menu = menubar.addMenu('&Производство')
         # сменный отчет
         shift_report_action = QAction('&Сменный отчет участка',self)
-        shift_report_action.triggered.connect(self.sou)
+        shift_report_action.triggered.connect(self.shift_rep)
         prodaction_menu.addAction(shift_report_action)
 
         # меню Планирование
@@ -83,16 +70,11 @@ class Pdm(QMainWindow):
         self.edit_res.build('resources')
         self.edit_res.show()
 
-    def editProf(self):
-        self.edit_prof = edit_prof.EditProf()
-        self.edit_prof.build('professions')
-        self.edit_prof.show()
-
     def costs(self):
         self.costs_window = costs.Costs()
 
-    def sou(self):
-        self.sou_window = sou.Sou()
+    def shift_rep(self):
+        self.sou_window = shift_rep.ShiftRep()
 
     # def create_database(self):
     #     self.createDBWindow = create_DB.CreateDB(self)

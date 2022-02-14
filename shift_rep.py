@@ -1,10 +1,12 @@
+import datetime
+
 from mysql.connector import connect, Error
 from PyQt5 import QtWidgets, QtGui, QtCore
 from PyQt5.QtWidgets import (QWidget, QPushButton,
                              QHBoxLayout, QVBoxLayout, QMessageBox)
 from mysql_dbconf_io import get_db_params
 
-class Sou(QWidget):
+class ShiftRep(QWidget):
     def __init__(self, parent=None):
         super().__init__()
         self.initUI()
@@ -13,7 +15,7 @@ class Sou(QWidget):
         self.setGeometry(300, 300, 600, 400)
         self.setWindowTitle("Сменный отчет участка")
         # дата
-        self.date = QtWidgets.QDateEdit(self)
+        self.date = QtWidgets.QDateTimeEdit(datetime.datetime.now())
         # таблица
         self.table = QtWidgets.QTableWidget()
         tab = self.table

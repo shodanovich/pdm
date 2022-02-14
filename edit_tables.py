@@ -9,7 +9,7 @@ class EditTables(QWidget):
         super().__init__()
 
     def build(self,table_name):
-        self.setGeometry(300, 300, 400, 400)
+        self.setGeometry(300, 300, 600, 400)
         # читаем параметры таблицы из config.ini (модуль mysql_dbconfig_io)
         # в config.ini собраны параметры таблицы в MySql и в QTableWidget
         params = get_db_params(filename='config.ini', section=table_name)
@@ -17,13 +17,14 @@ class EditTables(QWidget):
         ### --- таблица ---
         self.table = QtWidgets.QTableWidget(self)
         tab = self.table
-        columnCount = int(params['columncount'])  # количество колонок
-        tab.setColumnCount(columnCount)
-        tab.setRowCount(0)  # количество строк = 0
         # Устанавливаем заголовки таблицы
         headers = params['columnnames']
         headers_list = [x.strip() for x in headers.split(',')]
-        tab.setHorizontalHeaderLabels(headers_list)
+        columncount = len(headers_list)  # количество колонок
+        tab.setColumnCount(columncount)
+        tab.setHorizontalHeaderLabels(headers_list) # заголовки столбцов
+        tab.setRowCount(0)  # количество строк = 0
+
         # первая колонка имеет фиксированную ширину
         tab.setColumnWidth(0,40)
         # вторую колонку растягиваем по содержимому
@@ -38,7 +39,6 @@ class EditTables(QWidget):
         lst_table = read_table(table_name)
         # вставляем данные из БД в QTableWidget
         self.table.blockSignals(True)  # блокируем сигналы в QWidgetTable
-        columncount = int(params['columncount'])
         i = 0
         for row in lst_table:
             self.table.insertRow(i)
@@ -156,10 +156,11 @@ class EditTables(QWidget):
                 for j in range(columnCount):
                     item = self.table.item(i, j)
                     if item != None:
-                        if j == 0:  # id
-                            req = int(item.text())
-                        else:
-                            req = item.text()
+                        req = item.text()
+                        if req == '':
+                            req = '0'
+                    else:
+                        req = '0'
                     item_i += (req,)
                 items += (item_i,)
             # вставляем items в таблицу
