@@ -206,18 +206,18 @@ class EditTables(QWidget):
         self.close()
 
 # читаем данные из БД в QTableWidget
-def read_table(table_name):
+def read_table(table_name,query):
     db_config = get_db_params()
     params = get_db_params(filename='config.ini', section=table_name)
     try:
         conn = connect(**db_config)
         cursor = conn.cursor()
         # строка запроса
-        select_query = ("SELECT "+params['fieldnames']+" FROM " + table_name)
-        orderFields = params.get('orderfields')
-        if orderFields != None:
-            select_query += (" ORDER BY " + orderFields)
-        cursor.execute(select_query)
+        # select_query = ("SELECT "+params['fieldnames']+" FROM " + table_name)
+        # orderFields = params.get('orderfields')
+        # if orderFields != None:
+        #     select_query += (" ORDER BY " + orderFields)
+        cursor.execute(query)
         result = cursor.fetchall()  # данных немного, читаем все
     except Error as e:
         print("Error: ", e)

@@ -1,4 +1,3 @@
-import decimal
 from mysql.connector import connect, Error
 from PyQt5 import QtWidgets, QtGui, QtCore
 from PyQt5.QtWidgets import (QWidget, QPushButton,
@@ -15,27 +14,44 @@ class Costs(QWidget):
     def initUI(self):
         self.setGeometry(300, 300, 600, 400)
         self.setWindowTitle("Нормативы затрат на изделие")
-        # выбираем изделие
+        # параметры таблицы
+        params = get_db_params(filename='config.ini', section='resources')
+
         self.prod_box = QComboBox()
-        # выбираем ресурсы
-        self.resources = read_table('resources') #список с данными из БД ресурсов
-        for res in self.resources:
-            self.prod_box.addItem(res[1])
-        self.prod_box.activated.connect(self.change_prod)
-        tpl = self.code_measure(self.prod_box.currentText())
-        self.measure_label = QtWidgets.QLabel('1 ' + tpl[1])
+        # выбираем изделие из базы (строка запроса с нулевой ценой)
+        select_query = ("SELECT * FROM resources WHERE price < 0.01")
+        orderFields = params.get('orderfields')
+        select_query += " ORDER BY " + orderFields if orderFields else ""
+        # читаем таблицу ресурсов (изделия)
+        lst_prod = read_table(params['tablename'],select_query)
+
+        # заполняем prod_box
+        for prod in lst_prod:
+            self.prod_box.addItem(prod[1])
+        # начальное значение единицы измерения для изделия
+        self.measure_label = QtWidgets.QLabel()
+        self.measure_label.setText('1 ' + lst_prod[0][2])
+        # обработка при выборе
+        self.prod_box.activated.connect(lambda: self.change_prod(lst_prod))
+
         # таблица ресурсов
+        query = "SELECT * FROM resources ORDER BY name"
+        self.lst_res = read_table('resources', query)
+
         self.table = QtWidgets.QTableWidget()
         tab = self.table
-        tab.setColumnCount(4)
+        tab.setColumnCount(5)
         tab.setRowCount(0)
         # Устанавливаем заголовки таблицы
-        header_labels = ('Ресурс',' ','Ед. изм.','Расход на ед.')
-        tab.setHorizontalHeaderLabels(header_labels)
-        # первую колонку растягиваем по содержимому
+        tab.setHorizontalHeaderLabels(('Код','Ресурс',' ','Ед. изм.','Расход на ед.'))
         header = tab.horizontalHeader()
-        header.setSectionResizeMode(0, QtWidgets.QHeaderView.Stretch)
-        self.table.setColumnWidth(1,20)
+        # вторую колонку растягиваем по содержимому
+        header.setSectionResizeMode(1, QtWidgets.QHeaderView.Stretch)
+        self.table.setColumnWidth(0,20)     # код
+        self.table.setColumnWidth(2, 20)    # ед. изм.
+        # вносим начальные данные в таблицу
+        self.change_prod(lst_prod)
+
         # управляющие кнопки
         btn_insert = QPushButton("Добавить (Ins)")
         btn_insert.setShortcut('Ins')
@@ -45,10 +61,15 @@ class Costs(QWidget):
         btn_delete.clicked.connect(self.delete_record)
         btn_save = QPushButton('Сохранить (Ctrl+S)')
         btn_save.setShortcut('ctrl+s')
-        btn_save.clicked.connect(lambda: self.save_table())  # слот с параметром
+
+        i = self.prod_box.currentIndex()
+        tpl = lst_prod[i]
+        code_prod = tpl[0]  # код изделия
+
+        btn_save.clicked.connect(lambda: self.save_table(lst_prod))
         btn_exit = QPushButton('Выйти (Esc)')
         btn_exit.setShortcut('Esc')
-        btn_exit.clicked.connect(lambda: self.out())
+        btn_exit.clicked.connect(lambda: self.out(lst_prod))
         # строка состояния
         self.info_label = QtWidgets.QLabel()
         # размещение
@@ -75,19 +96,20 @@ class Costs(QWidget):
         self.show()
 
     # выбрали изделие, собираем и добавляем затраты на него
-    def change_prod(self):
-        txt = self.prod_box.currentText()
-        tpl = self.code_measure(txt)        #(код, единица измерения)
-        self.measure_label.setText('1 ' + tpl[1]) # единица измерения
-        code = tpl[0]   # код изделия
-        # ищем в базе нормативных затрат затраты по коду выбранного издения
+    def change_prod(self,lst):
+        # единица измерения в метке на форме
+        i = self.prod_box.currentIndex()
+        self.measure_label.setText('1 ' + lst[i][2])
+        # затраты на изделие
+        code = lst[i][0]   # код изделия
+        # ищем в базе нормативных затрат затраты по коду выбранного изделия
         db_config = get_db_params()
         try:
             conn = connect(**db_config)
             cursor = conn.cursor()
             # читаем затраты для данного издения
             select_query = """
-            SELECT resources.name, resources.measure, 
+            SELECT resources.id, resources.name, resources.measure, 
             costs.cost FROM resources, costs 
             WHERE costs.res1_id = resources.id 
             AND costs.res2_id = 
@@ -100,47 +122,54 @@ class Costs(QWidget):
         finally:
             conn.close()
 
+        # заполняем таблицу
         self.table.setRowCount(0)
         for row in result:
-            i = self.add_row()
+            i = self.table.rowCount()
+            self.table.insertRow(i)
+            self.table.setCurrentCell(i, 0)
+            item = self.table.currentItem()
+            self.insert_btn_choice(i, 2)
             self.table.setItem(i,0,QtWidgets.QTableWidgetItem(str(row[0])))
-            self.table.setItem(i, 2, QtWidgets.QTableWidgetItem(str(row[1])))
+            self.table.setItem(i, 1, QtWidgets.QTableWidgetItem(str(row[1])))
             self.table.setItem(i, 3, QtWidgets.QTableWidgetItem(str(row[2])))
+            self.table.setItem(i, 4, QtWidgets.QTableWidgetItem(str(row[3])))
 
     # по нажатию кнопки (...)
-    # вставляем в 0 столбец таблицы QComboBox
-    def btn_choice_clicked(self):
-        self.res_box = QComboBox()
-        self.res_box.currentTextChanged.connect(self.change_res_box)
+    # вставляем в 1 столбец таблицы QComboBox со значениями
+    def btn_choice_clicked(self, lst_res):
+        zlst = list(zip(*lst_res))  # транспонируем список
+        names = zlst[1]             # в первой строке - наименования
 
-        rowPosition = self.table.currentRow()
-        self.table.setCellWidget(rowPosition, 0, self.res_box)
-        for res in self.resources:
-            if res[1] == self.prod_box.currentText():
-                continue
-            for row in range(0,rowPosition):
-                if res[1]==self.table.item(row,0).text():
-                    break
-            else:
-                self.res_box.addItem(res[1])
+        # вставляем в текущую строку QComboBox()
+        row_position = self.table.currentRow()
+        self.res_box = QComboBox()
+        self.table.setCellWidget(row_position, 1, self.res_box)
+
+        self.res_box.activated.connect(self.change_res_box)
+
+        # формируем список для выбора
+        # nonames - этих наименований не должно быть в списке для выбора
+        nonames = [self.prod_box.currentText()]
+        nonames += [self.table.item(row, 1).text() for row in range(row_position)]
+        fnames = [x for x in names if x not in nonames]
+        self.res_box.addItems(fnames)
 
     # добавляем строку в QTableWidget
     def add_row(self):
         i = self.table.rowCount()
         self.table.insertRow(i)
-        self.table.setCurrentCell(i,0)
-        item = self.table.currentItem()
-        self.insert_btn_choice(i,1)
+        self.table.setCurrentCell(i,1)
+        # вставляем кнопку
+        self.insert_btn_choice(i,2)
         return i
 
-    # вставляем кнопку
-    def insert_btn_choice(self,i, j):
+    def insert_btn_choice(self,i,j):
         self.btn_choice = QPushButton('...')
         self.btn_choice.setSizePolicy(QtWidgets.QSizePolicy.Ignored,
-                               QtWidgets.QSizePolicy.Maximum)
-        self.table.setCellWidget(i,j,self.btn_choice)
-        self.btn_choice.clicked.connect(self.btn_choice_clicked)
-        #self.btn_choice.click()
+                                      QtWidgets.QSizePolicy.Maximum)
+        self.table.setCellWidget(i, j, self.btn_choice)
+        self.btn_choice.clicked.connect(lambda: self.btn_choice_clicked(self.lst_res))
 
     # удаляем строку из QTableWidget
     def delete_record(self):
@@ -149,32 +178,31 @@ class Costs(QWidget):
 
     # обработка выбора в QComboBox
     def change_res_box(self):
+        lst = self.lst_res
         rowPosition = self.table.currentRow()
         txt = self.res_box.currentText()  # выбранный текст в QComboBox
-        # устанавливаем его в ячейке таблицы
-        self.table.setItem(rowPosition, 0, QtWidgets.QTableWidgetItem(txt))
-        # ищем в списке resources единицу измерения и устанавливаем ее в QTableWidget
-        tpl = self.code_measure(txt)
-        self.table.setItem(rowPosition, 2, QtWidgets.QTableWidgetItem(tpl[1]))
-
-    # поиск кода и единицы измерения по наименованию ресурса
-    def code_measure(self,txt):
-        for res in self.resources:
-            if res[1] == txt:
-                tpl = (res[0],res[2],)
-                return tpl
+        for row in lst:
+            if row[1] == txt:
+                id = row[0]; measure = row[2]
+                break
+        else:
+            return
+        # устанавливаем в таблице код, наименование и ед. изм
+        self.table.setItem(rowPosition, 0, QtWidgets.QTableWidgetItem(str(id)))
+        self.table.setItem(rowPosition, 1, QtWidgets.QTableWidgetItem(txt))
+        self.table.setItem(rowPosition, 3, QtWidgets.QTableWidgetItem(measure))
 
     # сохраняем QTableWidget в MySql
-    def save_table(self):
+    def save_table(self,lst_prod):
+        i = self.prod_box.currentIndex()
+        code_prod = lst_prod[i][0]
         db_config = get_db_params()
         params = get_db_params(filename='config.ini', section='costs')
         table_name = params['tablename']
         try:
+            # удаляем в базе затраты для данного изделия
             conn = connect(**db_config)
             cursor = conn.cursor()
-            tpl = self.code_measure(self.prod_box.currentText())
-            code_prod = tpl[0]  # код изделия (полуфабриката)
-            # удаляем в базе затраты для данного изделия
             delete_query = """
             DELETE FROM costs
             WHERE res2_id =
@@ -182,19 +210,14 @@ class Costs(QWidget):
             cursor.execute(delete_query)
             conn.commit()
 
-            rowcount = self.table.rowCount()
             # записываем данные
+            rowcount = self.table.rowCount()
             items = []
             for i in range(rowcount):
-                item_i = ()
-                item = self.table.item(i, 0)
-                if item != None:
-                    tpl = self.code_measure(item.text())
-                    item_i += (tpl[0],)     # код ресурса
-                    item_i += (code_prod,)
-                    item = self.table.item(i,3)
-                    if item != None:
-                        item_i += (float(item.text()),)
+                code_res = int(self.table.item(i, 0).text())    # код ресурса
+                item_i = (code_res,code_prod)
+                item = self.table.item(i,4)         # затраты
+                item_i += (float(item.text()),) if item else (0.0,)
                 items.append(item_i)
 
             fieldNames = params['fieldnames']
@@ -209,17 +232,7 @@ class Costs(QWidget):
         finally:
             conn.close()
 
-    def out(self):
-        self.save_table()
+    def out(self,lst_prod):
+        self.save_table(lst_prod)
         self.close()
 
-    # # горячие клавиши. Переопределяем метод keyPressEvent
-    # def keyPressEvent(self, event: QtGui.QKeyEvent):
-    #     if event.key() == QtCore.Qt.Key_Insert:  # Insert
-    #         self.add_row()  # Добавить запись
-    #     elif event.key() == QtCore.Qt.Key_Delete:  # Delete
-    #         self.delete_record()  # Удалить запись
-    #     elif event.key() == QtCore.Qt.Key_F10:  # сохранить таблицу в БД
-    #         self.save_table()
-    #     elif event.key() == QtCore.Qt.Key_Escape:  # выход
-    #         self.close()
