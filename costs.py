@@ -37,6 +37,8 @@ class Costs(QWidget):
         # таблица ресурсов
         query = "SELECT * FROM resources ORDER BY name"
         self.lst_res = read_table('resources', query)
+        zlst = list(zip(*self.lst_res))  # транспонируем список
+        self.names = zlst[1]        # здесь наименования
 
         self.table = QtWidgets.QTableWidget()
         tab = self.table
@@ -61,10 +63,6 @@ class Costs(QWidget):
         btn_delete.clicked.connect(self.delete_record)
         btn_save = QPushButton('Сохранить (Ctrl+S)')
         btn_save.setShortcut('ctrl+s')
-
-        i = self.prod_box.currentIndex()
-        tpl = lst_prod[i]
-        code_prod = tpl[0]  # код изделия
 
         btn_save.clicked.connect(lambda: self.save_table(lst_prod))
         btn_exit = QPushButton('Выйти (Esc)')
@@ -128,7 +126,6 @@ class Costs(QWidget):
             i = self.table.rowCount()
             self.table.insertRow(i)
             self.table.setCurrentCell(i, 0)
-            item = self.table.currentItem()
             self.insert_btn_choice(i, 2)
             self.table.setItem(i,0,QtWidgets.QTableWidgetItem(str(row[0])))
             self.table.setItem(i, 1, QtWidgets.QTableWidgetItem(str(row[1])))
@@ -137,10 +134,7 @@ class Costs(QWidget):
 
     # по нажатию кнопки (...)
     # вставляем в 1 столбец таблицы QComboBox со значениями
-    def btn_choice_clicked(self, lst_res):
-        zlst = list(zip(*lst_res))  # транспонируем список
-        names = zlst[1]             # в первой строке - наименования
-
+    def btn_choice_clicked(self, names):
         # вставляем в текущую строку QComboBox()
         row_position = self.table.currentRow()
         self.res_box = QComboBox()
@@ -154,6 +148,18 @@ class Costs(QWidget):
         nonames += [self.table.item(row, 1).text() for row in range(row_position)]
         fnames = [x for x in names if x not in nonames]
         self.res_box.addItems(fnames)
+
+    # обработка выбора в QComboBox
+    def change_res_box(self):
+        lst = self.lst_res
+        row_position = self.table.currentRow()
+        txt = self.res_box.currentText()  # выбранный текст в QComboBox
+        row = [x for x in lst if x[1]==txt]
+        id, measure = row[0][0], row[0][2]
+        # устанавливаем в таблице код, наименование и ед. изм
+        self.table.setItem(row_position, 0, QtWidgets.QTableWidgetItem(str(id)))
+        self.table.setItem(row_position, 1, QtWidgets.QTableWidgetItem(txt))
+        self.table.setItem(row_position, 3, QtWidgets.QTableWidgetItem(measure))
 
     # добавляем строку в QTableWidget
     def add_row(self):
@@ -169,28 +175,13 @@ class Costs(QWidget):
         self.btn_choice.setSizePolicy(QtWidgets.QSizePolicy.Ignored,
                                       QtWidgets.QSizePolicy.Maximum)
         self.table.setCellWidget(i, j, self.btn_choice)
-        self.btn_choice.clicked.connect(lambda: self.btn_choice_clicked(self.lst_res))
+        self.btn_choice.clicked.connect(lambda: self.btn_choice_clicked(self.names))
 
     # удаляем строку из QTableWidget
     def delete_record(self):
         rowPosition = self.table.currentRow()
         self.table.removeRow(rowPosition)
 
-    # обработка выбора в QComboBox
-    def change_res_box(self):
-        lst = self.lst_res
-        rowPosition = self.table.currentRow()
-        txt = self.res_box.currentText()  # выбранный текст в QComboBox
-        for row in lst:
-            if row[1] == txt:
-                id = row[0]; measure = row[2]
-                break
-        else:
-            return
-        # устанавливаем в таблице код, наименование и ед. изм
-        self.table.setItem(rowPosition, 0, QtWidgets.QTableWidgetItem(str(id)))
-        self.table.setItem(rowPosition, 1, QtWidgets.QTableWidgetItem(txt))
-        self.table.setItem(rowPosition, 3, QtWidgets.QTableWidgetItem(measure))
 
     # сохраняем QTableWidget в MySql
     def save_table(self,lst_prod):
@@ -203,10 +194,7 @@ class Costs(QWidget):
             # удаляем в базе затраты для данного изделия
             conn = connect(**db_config)
             cursor = conn.cursor()
-            delete_query = """
-            DELETE FROM costs
-            WHERE res2_id =
-            """ + str(code_prod)
+            delete_query = "DELETE FROM costs WHERE res2_id = " + str(code_prod)
             cursor.execute(delete_query)
             conn.commit()
 
