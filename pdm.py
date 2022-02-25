@@ -3,9 +3,9 @@ from PyQt5.QtWidgets import QMainWindow, QAction, qApp, QWidget, QApplication
 from PyQt5.QtGui import QIcon
 
 import create_DB    # создание базы данных
-import edit_res     # редактирование ресурсов
+from edit_res import EditRes     # редактирование ресурсов
+from shift_rep import ShiftRep
 import costs        # нормативы затрат
-import shift_rep          # сменный отчет участка
 
 class Pdm(QMainWindow):
     def __init__(self):
@@ -30,7 +30,7 @@ class Pdm(QMainWindow):
         res_menu = menubar.addMenu('&Ресурсы')
         # редактирование ресурсов
         edit_res_action = QAction('&Редактирование ресурсов', self)
-        edit_res_action.triggered.connect(self.editRes)
+        edit_res_action.triggered.connect(self.edit_res)
         res_menu.addAction(edit_res_action)
 
         # меню нормативов
@@ -65,16 +65,53 @@ class Pdm(QMainWindow):
         self.setGeometry(300, 300, 600, 200)
         self.setWindowTitle('Управление производственным участком')
 
-    def editRes(self):
-        self.edit_res = edit_res.EditRes()
-        self.edit_res.build('resources')
-        self.edit_res.show()
+    def edit_res(self):
+        """Редактор ресурсов"""
+        # упакуем параметры в словарь
+        params={}
+        # параметры QTableWidget
+        params['table_params']={'title': 'Редактирование ресурсов',
+                                'columnnames': 'Код, Наименование, Ед. изм., Цена(расц.)',
+                                'unique': '0, 1'
+                                }
+        # параметры запросов к БД
+        params['select_query'] = "SELECT * FROM resources ORDER BY name"
+
+        edit_res = EditRes(params)
+        edit_res.show()
 
     def costs(self):
-        self.costs_window = costs.Costs()
+        """
+        Нормативы затрат
+        :return:
+        """
+        params = {}
+        # параметры таблицы
+        params['table_params'] = {'title': 'Нормативы затрат на единицу изделия',
+                                  'columnnames': 'Код, Ресурс,,Ед. изм.,Расход на ед.',
+                                  'unique': '0, 1'
+                                  }
+        params['select_query'] = {}
+        self.costs_window = costs.Costs(params)
 
     def shift_rep(self):
-        self.sou_window = shift_rep.ShiftRep()
+        """Сменный отчет"""
+        # упакуем параметры в словарь
+        params = {}
+        # параметры QTableWidget
+        params['table_params'] = {'title': 'Сменный отчет участка',
+                                  'columnnames': 'Код, Наименование, , Количество',
+                                  'unique': '0, 1'
+                                  }
+        # параметры запросов к БД
+        params['select_query'] = """
+        SELECT id, name  FROM resources WHERE price < 0.01 ORDER BY name
+        """
+        params['delete_query'] = "DELETE FROM shiftrep WHERE (id IN (%s) AND daterep IN(%s))"
+        params['save_query'] = "INSERT INTO shiftrep (daterep, id, count) VALUES (%s,%s,%s)"
+
+        edit_shif_rep = ShiftRep(params)
+        edit_shif_rep.show()
 
     # def create_database(self):
     #     self.createDBWindow = create_DB.CreateDB(self)
