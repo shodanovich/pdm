@@ -3,7 +3,7 @@ from PyQt5 import QtWidgets
 from PyQt5.QtWidgets import (QWidget, QPushButton,
                              QHBoxLayout, QVBoxLayout,
                              QComboBox)
-from mysql_dbconf_io import get_db_params
+from mysql_dbconf import get_db_params
 from edit_tables import EditTables
 
 class Costs(EditTables):
@@ -94,12 +94,13 @@ class Costs(EditTables):
             self.table.setItem(i, 3, QtWidgets.QTableWidgetItem(str(row[2])))
             self.table.setItem(i, 4, QtWidgets.QTableWidgetItem(str(row[3])))
 
-    # обработка выбора в QComboBox
+            # обработка выбора в QComboBox
+
     def change_res_box(self):
         lst = self.lst_res
         row_position = self.table.currentRow()
         txt = self.res_box.currentText()  # выбранный текст в QComboBox
-        row = [x for x in lst if x[1]==txt]
+        row = [x for x in lst if x[1] == txt]
         id, measure = row[0][0], row[0][2]
         # устанавливаем в таблице код, наименование и ед. изм
         self.table.setItem(row_position, 0, QtWidgets.QTableWidgetItem(str(id)))
@@ -114,13 +115,6 @@ class Costs(EditTables):
         # вставляем кнопку
         self.insert_btn_choice(i,2)
         return i
-
-    def insert_btn_choice(self,i,j):
-        self.btn_choice = QPushButton('...')
-        self.btn_choice.setSizePolicy(QtWidgets.QSizePolicy.Ignored,
-                                      QtWidgets.QSizePolicy.Maximum)
-        self.table.setCellWidget(i, j, self.btn_choice)
-        self.btn_choice.clicked.connect(self.btn_choice_clicked)
 
     # удаляем строку из QTableWidget
     def delete_record(self):

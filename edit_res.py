@@ -1,7 +1,7 @@
 from mysql.connector import connect, Error
 from PyQt5 import QtWidgets
 from edit_tables import EditTables
-from mysql_dbconf_io import get_db_params
+from mysql_dbconf import get_db_params
 
 class EditRes(EditTables):
     """    местная специфика    """

@@ -1,26 +1,24 @@
 from datetime import date
 from mysql.connector import connect, Error
-from PyQt5 import QtWidgets, QtGui, QtCore
-from PyQt5.QtWidgets import (QWidget, QPushButton, QDateEdit,
-                             QComboBox,QLabel,
-                             QHBoxLayout, QVBoxLayout, QMessageBox)
+from PyQt5 import QtWidgets
+from PyQt5.QtWidgets import (QDateEdit,
+                             QLabel,
+                             QHBoxLayout)
 from edit_tables import EditTables
-#from costs import btn_choice_clicked
-from mysql_dbconf_io import get_db_params
+from mysql_dbconf import get_db_params
 
 class ShiftRep(EditTables):
     def __init__(self,params):
         super().__init__(params)
         self.dt_edit = QDateEdit(date.today())
-        today = self.dt_edit.date().toPyDate()
-        self.dt_edit.dateChanged.connect(lambda: self.date_changed(today))
+        self.dt_edit.dateChanged.connect(self.date_changed)
 
         hbox = QHBoxLayout()
         hbox.addWidget(QLabel("Дата: "))
         hbox.addWidget(self.dt_edit)
         hbox.addStretch()
         self.vbox.insertLayout(0,hbox)
-        self.date_changed(self.dt_edit.date().toPyDate())
+        self.date_changed()
 
         self.table.setColumnWidth(2, 20)    # здесь будет кнопка
 
@@ -28,14 +26,14 @@ class ShiftRep(EditTables):
         query = "SELECT * FROM resources WHERE price < 0.01 ORDER BY name"
         lst_prod = self.read_table(query)
         zlst = list(zip(*lst_prod))  # транспонируем список
-        self.names = zlst[1]  # здесь наименования
+        self.ids = zlst[0]      # здесь коды
+        self.names = zlst[1]    # здесь наименования
+        self.show()
 
-    def date_changed(self,today):
-        """
-        заполняем QTableWidget изделиями за текущую дату, если они есть
-        :param today:
-        """
-        result = self.get_prods(today)
+    def date_changed(self):
+        date_ = self.dt_edit.date().toPyDate()
+        # заполняем QTableWidget изделиями за текущую дату, если они есть
+        result = self.get_prods(date_)
         # заполняем таблицу
         self.table.setRowCount(0)
         for row in result:
@@ -46,29 +44,29 @@ class ShiftRep(EditTables):
             self.insert_btn_choice(i, 2)
             self.table.setItem(i, 3, QtWidgets.QTableWidgetItem(str(row[2])))
 
-    def get_prods(self,today):
-        query = """
+    def get_prods(self,date_):
+        query = f"""
                SELECT resources.id, resources.name, shiftrep.count 
                FROM resources, shiftrep 
-               WHERE shiftrep.daterep = DATE(%s)
+               WHERE shiftrep.daterep = DATE('{str(date_)}')
                AND resources.id = shiftrep.id
                """
-        return self.read_table(query,(str(today),))
+        return self.read_table(query)
 
     def add_row(self):
-        super().add_row()
-        self.insert_btn_choice(self.table.row_count,2)
+        row_count = self.table.rowCount()
+        self.table.insertRow(row_count)
+        self.insert_btn_choice(row_count,2)
+
+    def change_res_box(self):
+        i = self.table.currentRow()
+        j = self.names.index(self.res_box.currentText())
+        self.table.setItem(i,0,QtWidgets.QTableWidgetItem(str(self.ids[j])))
+        self.table.setItem(i,1,QtWidgets.QTableWidgetItem(self.res_box.currentText()))
 
     def delete_record(self):
         rowPosition = self.table.currentRow()
         self.table.removeRow(rowPosition)
-
-    def insert_btn_choice(self,i,j):
-        self.btn_choice = QPushButton('...')
-        self.btn_choice.setSizePolicy(QtWidgets.QSizePolicy.Ignored,
-                                      QtWidgets.QSizePolicy.Maximum)
-        self.table.setCellWidget(i, j, self.btn_choice)
-        self.btn_choice.clicked.connect(self.btn_choice_clicked)
 
     def insert_to_table(self,lst_table,tab):
        pass
@@ -82,26 +80,23 @@ class ShiftRep(EditTables):
             conn = connect(**db_config)
             cursor = conn.cursor()
             ### --- заменяем таблицу ---
-            query = """
-            DELETE FROM shiftrep WHERE daterep = DATE(%s)
-            AND id IN (%s)
-            """
             str_today = str(self.dt_edit.date().toPyDate())
-            query_params = (str_today,)
-            # ids QTableWidget
-            ids = tuple(int(self.table.item(i, 0).text()) for i in range(row_count))
-            query_params += ids
-            cursor.execute(query, query_params)
+            query = f"""
+            DELETE FROM shiftrep WHERE daterep = DATE('{str_today}')
+            """
+            cursor.execute(query)
             conn.commit()
-            # формируем список значений для вставки
+            # записываем
             items = []
             for i in range(row_count):
-                item_i = [str_today, self.table.item(i, 0).text(), \
-                         self.table.item(i, 2).text()]
-                items += item_i
+                id_ = int(self.table.item(i, 0).text())
+                item_i = (str_today,id_)
+                item = self.table.item(i, 3)
+                item_i += (float(item.text()),) if item else (0.0,)
+                items.append(item_i)
 
-            query = "INSERT INTO shiftrep (daterep, id, count) VALUES (%s,%s,%s)"
-            cursor.execute(query,items)
+            query = "INSERT INTO shiftrep (daterep, id, count) VALUES (DATE(%s),%s,%s)"
+            cursor.executemany(query,items)
             conn.commit()
 
             self.info_label.setText("Сохранено.")
@@ -113,6 +108,5 @@ class ShiftRep(EditTables):
     def change_prod(self,lst_prod):
         pass
 
-    def change_res_box(self):
-        pass
+
 

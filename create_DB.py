@@ -1,6 +1,6 @@
 from PyQt5 import QtCore, QtWidgets
 from mysql.connector import connect, Error
-from mysql_dbconf_io import get_db_params
+from mysql_dbconf import get_db_params
 
 class CreateDB(QtWidgets.QWidget):
     def __init__(self,parent=None):

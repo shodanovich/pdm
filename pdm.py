@@ -6,6 +6,7 @@ import create_DB    # создание базы данных
 from edit_res import EditRes     # редактирование ресурсов
 from shift_rep import ShiftRep
 import costs        # нормативы затрат
+from prod_report import ProdReport
 
 class Pdm(QMainWindow):
     def __init__(self):
@@ -41,11 +42,15 @@ class Pdm(QMainWindow):
         norm_menu.addAction(costs_action)
 
         # меню Производство
-        prodaction_menu = menubar.addMenu('&Производство')
+        production_menu = menubar.addMenu('&Производство')
         # сменный отчет
         shift_report_action = QAction('&Сменный отчет участка',self)
         shift_report_action.triggered.connect(self.shift_rep)
-        prodaction_menu.addAction(shift_report_action)
+        production_menu.addAction(shift_report_action)
+        # отчет по производству и затратам
+        prod_report_action = QAction('&Отчет по производству и затратам',self)
+        prod_report_action.triggered.connect(self.prod_report)
+        production_menu.addAction(prod_report_action)
 
         # меню Планирование
         plan_menu = menubar.addMenu('&Планирование')
@@ -110,8 +115,11 @@ class Pdm(QMainWindow):
         params['delete_query'] = "DELETE FROM shiftrep WHERE (id IN (%s) AND daterep IN(%s))"
         params['save_query'] = "INSERT INTO shiftrep (daterep, id, count) VALUES (%s,%s,%s)"
 
-        edit_shif_rep = ShiftRep(params)
-        edit_shif_rep.show()
+        self.edit_shif_rep = ShiftRep(params)
+
+    def prod_report(self):
+        self.prod_rep = ProdReport()
+        self.prod_rep.show()
 
     # def create_database(self):
     #     self.createDBWindow = create_DB.CreateDB(self)

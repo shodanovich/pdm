@@ -4,7 +4,7 @@ from PyQt5.QtWidgets import (QWidget, QPushButton, QComboBox,
                              QHBoxLayout, QVBoxLayout, QMessageBox)
 
 import edit_res
-from mysql_dbconf_io import get_db_params
+from mysql_dbconf import get_db_params
 
 class EditTables(QWidget):
     """
@@ -47,7 +47,7 @@ class EditTables(QWidget):
         self.info_label = QtWidgets.QLabel()
         self.info_label.setText(f"Прочитано записей: {i}")
 
-        ### --- кнопки ---
+        ### --- управляющие кнопки ---
         self.btn_insert = QPushButton("Добавить (Ins)")
         self.btn_insert.setShortcut('Ins')
         self.btn_insert.clicked.connect(self.add_row)
@@ -80,7 +80,7 @@ class EditTables(QWidget):
 
         self.show()
 
-    # добавляем пустую строку в QTableWidget
+    # добавляем строку в QTableWidget
     def add_row(self):
         row_count = self.table.rowCount()
         # собираем коды ресурсов QTableWidget в кортеж
@@ -146,6 +146,13 @@ class EditTables(QWidget):
         tab.blockSignals(False)  # разблокируем сигналы
         return 0 if i == 0 else i+1
 
+    def insert_btn_choice(self, i, j):
+        self.btn_choice = QPushButton('...')
+        self.btn_choice.setSizePolicy(QtWidgets.QSizePolicy.Ignored,
+                                      QtWidgets.QSizePolicy.Maximum)
+        self.table.setCellWidget(i, j, self.btn_choice)
+        self.btn_choice.clicked.connect(self.btn_choice_clicked)
+
     # по нажатию кнопки (...)
     # вставляем в 1 столбец таблицы QComboBox со значениями
     def btn_choice_clicked(self):
@@ -153,12 +160,15 @@ class EditTables(QWidget):
         row_position = self.table.currentRow()
         self.res_box = QComboBox()
         self.table.setCellWidget(row_position, 1, self.res_box)
-
         self.res_box.activated.connect(self.change_res_box)
-
         # формируем список для выбора
         # nonames - этих наименований не должно быть в списке для выбора
         nonames = [self.res_box.currentText()]
-        nonames += [self.table.item(row, 1).text() for row in range(row_position)]
+        for row in range(row_position):
+            if self.table.item(row, 1):
+                txt = self.table.item(row, 1).text()
+                nonames += [txt]
+        #nonames += [self.table.item(row, 1).text() for row in range(row_position)]
         fnames = [x for x in self.names if x not in nonames]
         self.res_box.addItems(fnames)
+
