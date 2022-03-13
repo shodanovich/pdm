@@ -71,7 +71,7 @@ class ProdReport(QWidget):
                                       AND CAST('{str_date2}' AS DATE);
                 """
         production = EditTables.read_table(EditTables, query)
-        production.sort(key=lambda res_id: res_id[0])  # сортируем по первому коду
+        production.sort(key=lambda pr_id: pr_id[0])  # сортируем по первому коду
         # свернем
         i = 0;
         lst_s = []
@@ -108,6 +108,7 @@ class ProdReport(QWidget):
         self.header_table.horizontalHeader().setSectionResizeMode(0,QHeaderView.Stretch);
 
         # затраты ресурсов
+        # первая строка заголовка
         for i, head in enumerate(headers):
             self.header_table.setSpan(0, 1+i*2, 1, 2);  # объединить ячейки
             item = QTableWidgetItem(headers[i])
@@ -142,7 +143,9 @@ class ProdReport(QWidget):
 
         # затраты на единицу
         self.lst_costs = self.get_costs(ids_products)
+
         # вывод
+        its = [0.0 for j in range(columnCount)]
         i = 0
         while True:
             id0 = self.lst_costs[i][0]
@@ -163,24 +166,40 @@ class ProdReport(QWidget):
                 # по стоимости
                 value_res = res[0][3] * cost_res
                 sum_value += value_res
-
+                # итоги
+                its[j+1] += value_res
+                # выводим
                 self.table.setItem(row, j, QTableWidgetItem('{:>15.3f}'.format(cost_res)))
                 self.table.setItem(row, j+1, QTableWidgetItem('{:>15.2f}'.format(value_res)))
                 i += 1
-                if i >= len(self.lst_costs):
-                    j += 2
-                    break
                 j += 2
+                if i >= len(self.lst_costs):
+                    break
+            # суммы по строке
+            its[j+1] += sum_value
+            self.table.setItem(row, j, QTableWidgetItem('{:>15.3f}'.format(sum_cost)))
+            self.table.setItem(row, j + 1, QTableWidgetItem('{:>15.2f}'.format(sum_value)))
             if i >= len(self.lst_costs):
-                self.sums(row, j, sum_cost, sum_value)
                 break
-            self.sums(row, j, sum_cost, sum_value)
-
-
-    # вывод сумм
-    def sums(self, row, j, sum_cost, sum_value):
-        self.table.setItem(row, j, QTableWidgetItem('{:>15.3f}'.format(sum_cost)))
-        self.table.setItem(row, j + 1, QTableWidgetItem('{:>15.2f}'.format(sum_value)))
+        # суммы по столбцам
+        self.table.insertRow(self.table.rowCount())
+        row = self.table.rowCount() - 1
+        self.table.setItem(row, 0, QTableWidgetItem('Итого:'))
+        for j in range(1, columnCount):
+            if its[j] != 0.0:
+                self.table.setItem(row, j, QTableWidgetItem('{:>15.2f}'.format(its[j])))
+            else:
+                self.table.setItem(row, j, QTableWidgetItem('{:>15s}'.format('---')))
+        # себестоимость единицы
+        self.table.insertRow(self.table.rowCount())
+        row = self.table.rowCount() - 1
+        self.table.setItem(row, 0, QTableWidgetItem('Себестоимость единицы:'))
+        for j in range(1, columnCount-2):
+            if its[j] != 0.0:
+                its1 = its[j] / dict_production[ids_products[j//2-1]]
+                self.table.setItem(row, j, QTableWidgetItem('{:>15.2f}'.format(its1)))
+            else:
+                self.table.setItem(row, j, QTableWidgetItem('{:>15s}'.format('---')))
 
     # затраты на единицу продукции
     def get_costs(self, ids):

@@ -1,8 +1,10 @@
 import sys
-from PyQt5.QtWidgets import QMainWindow, QAction, qApp, QWidget, QApplication
+from PyQt5.QtWidgets import QMainWindow, QAction, qApp, QApplication
 from PyQt5.QtGui import QIcon
+from mysql.connector import connect, Error
 
-import create_DB    # создание базы данных
+from mysql_dbconf import get_db_params
+from create_db import create_db    # создание базы данных
 from edit_res import EditRes     # редактирование ресурсов
 from shift_rep import ShiftRep
 import costs        # нормативы затрат
@@ -61,14 +63,9 @@ class Pdm(QMainWindow):
         plan2_action = QAction('&Расчет запасов по плану продукции')
         plan_menu.addAction(plan2_action)
 
-        # # меню создание БД
-        # db_menu = menubar.addMenu('&База данных')
-        # db_action = QAction('&Создать базу данных', self)
-        # db_action.triggered.connect(self.create_database)
-        # db_menu.addAction(db_action)
-
         self.setGeometry(300, 300, 600, 200)
         self.setWindowTitle('Управление производственным участком')
+
 
     def edit_res(self):
         """Редактор ресурсов"""
@@ -121,12 +118,19 @@ class Pdm(QMainWindow):
         self.prod_rep = ProdReport()
         self.prod_rep.show()
 
-    # def create_database(self):
-    #     self.createDBWindow = create_DB.CreateDB(self)
-    #     self.createDBWindow.show()
+def first_launch():
+    db_config = get_db_params()
+    try:
+        # при успешном соединении ничего не делаем
+        conn = connect(**db_config)
+        return
+    except Error as e:
+        # создаем базу данных
+       create_db()
 
 
 if __name__ == '__main__':
+    first_launch()
     app = QApplication(sys.argv)
     pdm = Pdm()
     pdm.show()
