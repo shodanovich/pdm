@@ -16,8 +16,8 @@ class Costs(EditTables):
         # выбор изделия
         self.prod_box = QComboBox()
         # выбираем изделия из базы (строка запроса с нулевой ценой)
-        select_query = "SELECT * FROM resources WHERE price < 0.01  ORDER BY name"
-        self.lst_prod = self.read_table(select_query)
+        query = "SELECT * from resources"
+        self.lst_prod = self.read_table(query)
         # и заполняем prod_box
         for prod in self.lst_prod:
             self.prod_box.addItem(prod[1])

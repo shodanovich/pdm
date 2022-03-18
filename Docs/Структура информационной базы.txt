@@ -19,3 +19,10 @@
 					daterep DATE,			# дата документа
 					id INT,					# id произведенного изделия
 					count FLOAT				# количество
+	inventory (запасы)
+		inventory (
+					id INTEGER,				# id ресурса
+					count FLOAT,			# количество
+					price FLOAT,			# цена (расценка)
+					date_purchase DATE		# дата закупки (приема работника)
+					

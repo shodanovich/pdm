@@ -47,10 +47,19 @@ class EditRes(EditTables):
             # формируем список значений для вставки
             row_count = self.table.rowCount()
             column_count = self.table.columnCount()
-            items = [[self.table.item(i, j).text() for j in range(column_count)] \
-                     for i in range(row_count)]
+            if row_count and column_count:
+                items = []
+                for i in range(row_count):
+                    items_i = ()
+                    for j in range(column_count):
+                        item = self.table.item(i, j)
+                        if item:
+                            items_i += (item.text(),)
+                        else:
+                            items_i += ('',)
+                    items += (items_i,)
 
-            save_query = "INSERT INTO resources (id, name, measure, price) VALUES (%s,%s,%s,%s)"
+            save_query = "INSERT INTO resources (id, name, measure) VALUES (%s,%s,%s)"
             cursor.executemany(save_query,items)
             conn.commit()
 

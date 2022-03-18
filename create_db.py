@@ -24,8 +24,7 @@ def create_db():
             CREATE TABLE resources (
                 id INT PRIMARY KEY,
                 name VARCHAR(256),
-                measure VARCHAR(10),
-                price FLOAT      
+                measure VARCHAR(10)
                 );
             CREATE TABLE costs ( 
                 res1_id INT,
@@ -37,6 +36,11 @@ def create_db():
                 id INT,
                 count FLOAT
                 );
+            CREATE TABLE inventory (
+                id INT,
+                count FLOAT,
+                price FLOAT,
+                date_purchase DATE);    
                 """
         cursor.execute(create_tables_query)
     except Error as e:

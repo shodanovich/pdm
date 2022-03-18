@@ -9,6 +9,7 @@ from edit_res import EditRes     # редактирование ресурсов
 from shift_rep import ShiftRep
 import costs        # нормативы затрат
 from prod_report import ProdReport
+from purchases import Purchases
 
 class Pdm(QMainWindow):
     def __init__(self):
@@ -35,6 +36,10 @@ class Pdm(QMainWindow):
         edit_res_action = QAction('&Редактирование ресурсов', self)
         edit_res_action.triggered.connect(self.edit_res)
         res_menu.addAction(edit_res_action)
+        # закупки
+        purchases_action = QAction('&Закупки', self)
+        purchases_action.triggered.connect(self.purchases)
+        res_menu.addAction(purchases_action)
 
         # меню нормативов
         norm_menu = menubar.addMenu('&Нормативы')
@@ -70,10 +75,10 @@ class Pdm(QMainWindow):
     def edit_res(self):
         """Редактор ресурсов"""
         # упакуем параметры в словарь
-        params={}
+        params = {}
         # параметры QTableWidget
-        params['table_params']={'title': 'Редактирование ресурсов',
-                                'columnnames': 'Код, Наименование, Ед. изм., Цена(расц.)',
+        params['table_params'] = {'title': 'Редактирование ресурсов (работ)',
+                                'columnnames': 'Код, Наименование, Ед. изм.',
                                 'unique': '0, 1'
                                 }
         # параметры запросов к БД
@@ -81,6 +86,16 @@ class Pdm(QMainWindow):
 
         edit_res = EditRes(params)
         edit_res.show()
+
+    def purchases(self):
+        params = {}
+        params['table_params'] = {'title': 'Закупки материалов, прием сотрудников',
+                                  'columnnames':
+                                      'Код, Наименование, , Ед.\nизм., Количество,Цена'
+                                  }
+        params['select_query'] = ''
+        self.purchases = Purchases(params)
+        #purchases.show()
 
     def costs(self):
         """
@@ -107,7 +122,7 @@ class Pdm(QMainWindow):
                                   }
         # параметры запросов к БД
         params['select_query'] = """
-        SELECT id, name  FROM resources WHERE price < 0.01 ORDER BY name
+        SELECT id, name  FROM resources ORDER BY name
         """
         params['delete_query'] = "DELETE FROM shiftrep WHERE (id IN (%s) AND daterep IN(%s))"
         params['save_query'] = "INSERT INTO shiftrep (daterep, id, count) VALUES (%s,%s,%s)"

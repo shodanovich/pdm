@@ -7,6 +7,7 @@ class ProdReport(QWidget):
     def __init__(self):
         super().__init__()
 
+        self.setWindowTitle('Отчет по производству и затратам')
         self.setGeometry(400,400,900,500)
 
         self.lst_costs = [] # для рекурсивной функции
@@ -40,60 +41,56 @@ class ProdReport(QWidget):
         self.setLayout(self.vbox)
 
     def start_rep(self):
+        str_date1 = str(self.date1.date().toPyDate())
+        str_date2 = str(self.date2.date().toPyDate())
         # читаем ресурсы
-        query = "SELECT * FROM resources ORDER BY name"
+        query = f"""
+        SELECT resources.*, inventory.price 
+        FROM resources, inventory
+        WHERE resources.id = inventory.id
+        AND inventory.date_purchase <= CAST('{str_date2}' AS DATE) 
+        ORDER BY name
+        """
         self.lst_res = EditTables.read_table(EditTables, query)
         zlst = list(zip(*self.lst_res))  # транспонируем список
         ids = zlst[0]  # коды
         names = zlst[1]  # наименования
         self.dict_res = dict(zip(ids, names)) # в словарь их
 
-        # ищем готовую продукцию. Это та, которая уже никуда не входит как затраты
-        query = """
-        SELECT id, name FROM resources
-        WHERE NOT EXISTS(
-            SELECT res1_id from costs 
-            WHERE res1_id = resources.id
-            ) 
-        """
-        lst_products = EditTables.read_table(EditTables,query)
-        # получаем список кодов и наименований
-        zlst = list(zip(*lst_products))  # транспонируем список
-        ids_products = zlst[0]      # коды
-        names_products = zlst[1]    # наименования
-
         # выработка
-        str_date1 = str(self.date1.date().toPyDate())
-        str_date2 = str(self.date2.date().toPyDate())
         query = f"""
-                SELECT id, count FROM shiftrep 
-                WHERE daterep BETWEEN CAST('{str_date1}' AS DATE) 
-                                      AND CAST('{str_date2}' AS DATE);
-                """
+        SELECT shiftrep.id, resources.name, resources.measure, shiftrep.count 
+        FROM shiftrep, resources
+        WHERE  shiftrep.id = resources.id 
+        AND shiftrep.daterep BETWEEN CAST('{str_date1}' AS DATE) 
+                              AND CAST('{str_date2}' AS DATE);
+        """
         production = EditTables.read_table(EditTables, query)
-        production.sort(key=lambda pr_id: pr_id[0])  # сортируем по первому коду
-        # свернем
+        production.sort(key=lambda pr_id: pr_id[0])  # сортируем по коду
+        zlst = list(zip(*production))  # транспонируем список
+        ids_products = zlst[0]  # коды
+        # свернем production
         i = 0;
         lst_s = []
         while i < len(production):
             id0 = production[i][0]
+            name = production[i][1]
+            measure = production[i][2]
             sum = 0.0
             while (i < len(production)) and (id0 == production[i][0]):
-                sum += production[i][1]
+                sum += production[i][3]
                 i += 1
-            lst_i = [id0, sum]
+            lst_i = [id0, name, measure, sum]
             lst_s.append(lst_i)
-
-        dict_production = dict(lst_s)
+        production = lst_s
 
         # к наименованию добавляем выработку:
         headers = []
-        for i, row in enumerate(names_products):
-            row += ("(" + str(dict_production[ids_products[i]]) + ")")
-            headers += [row]
+        for i, row in enumerate(production):
+            headers += [row[1] + "(" + str(row[3]) + ")"]
 
         # количество колонок в таблицах вывода
-        columnCount = 1 + 2*len(ids_products) + 2
+        columnCount = 1 + 2*len(headers) + 2
         # формируем заголовки таблицы вывода
         self.header_table.horizontalHeader().setHidden(True)
         self.header_table.verticalHeader().setHidden(True)
@@ -161,7 +158,10 @@ class ProdReport(QWidget):
             sum_cost, sum_value = 0.0, 0.0
             while id0 == self.lst_costs[i][0]:
                 # затраты в натуральном выражении
-                cost_res = self.lst_costs[i][2] * dict_production[self.lst_costs[i][1]]
+                # достаем выработку из production
+                id_prod = self.lst_costs[i][1]
+                prod_i = [x for x in production if x[0] == id_prod]
+                cost_res = self.lst_costs[i][2] * prod_i[0][3]
                 sum_cost += cost_res
                 # по стоимости
                 value_res = res[0][3] * cost_res
@@ -190,13 +190,14 @@ class ProdReport(QWidget):
                 self.table.setItem(row, j, QTableWidgetItem('{:>15.2f}'.format(its[j])))
             else:
                 self.table.setItem(row, j, QTableWidgetItem('{:>15s}'.format('---')))
-        # себестоимость единицы
+        # Затраты на единицу продукции
         self.table.insertRow(self.table.rowCount())
         row = self.table.rowCount() - 1
-        self.table.setItem(row, 0, QTableWidgetItem('Себестоимость единицы:'))
+        self.table.setItem(row, 0, QTableWidgetItem('Затраты на единицу продукции:'))
         for j in range(1, columnCount-2):
             if its[j] != 0.0:
-                its1 = its[j] / dict_production[ids_products[j//2-1]]
+                count = production[j // 2 - 1][3]
+                its1 = its[j] / count
                 self.table.setItem(row, j, QTableWidgetItem('{:>15.2f}'.format(its1)))
             else:
                 self.table.setItem(row, j, QTableWidgetItem('{:>15s}'.format('---')))
