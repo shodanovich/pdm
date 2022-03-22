@@ -3,9 +3,11 @@ from mysql.connector import connect, Error
 from PyQt5 import QtWidgets
 from PyQt5.QtWidgets import (QDateEdit,
                              QLabel,
-                             QHBoxLayout)
+                             QHBoxLayout,
+                             QMessageBox)
 from edit_tables import EditTables
 from mysql_dbconf import get_db_params
+from commons import *
 
 
 class ShiftRep(EditTables):
@@ -31,7 +33,7 @@ class ShiftRep(EditTables):
             WHERE res1_id = resources.id
             )
         """
-        lst_prod = self.read_table(query)
+        lst_prod = read_table(query)
         zlst = list(zip(*lst_prod))  # транспонируем список
         self.ids = zlst[0]  # коды
         self.names = zlst[1]  # наименования
@@ -58,7 +60,7 @@ class ShiftRep(EditTables):
                WHERE shiftrep.daterep = DATE('{str(date_)}')
                AND resources.id = shiftrep.id
                """
-        return self.read_table(query)
+        return read_table(query)
 
     def add_row(self):
         row_count = self.table.rowCount()
@@ -104,6 +106,85 @@ class ShiftRep(EditTables):
 
             query = "INSERT INTO shiftrep (daterep, id, count) VALUES (DATE(%s),%s,%s)"
             cursor.executemany(query, items)
+            conn.commit()
+
+            # удаляем списание
+            query = f"""
+            DELETE FROM inventory 
+            WHERE date_purchase = DATE('{str_today}')
+            AND count < 0
+            """
+            cursor.execute(query)
+            conn.commit()
+            # списываем материалы по методу FIFO
+            # ресурсы
+            lst = get_resources()
+            zlst = list(zip(*lst))  # транспонируем список
+            # словарь кодов и наименований ресурсов
+            dict_res = dict(zip(zlst[0], zlst[1]))
+            # 1. Затраты на ед.:
+            zitems =  list(zip(*items))  # транспонируем список
+            ids = zitems[1]     # коды
+            costs = get_costs(ids) # затраты на ед.
+            # 2. Умножаем на объемы производства и проставляем дату списания
+            cost2 = []
+            for row in costs:
+                for val in items:
+                    if row[1] == val[1]:
+                        row1 = [row[0], row[2]*val[2], 0, val[0]]
+                        cost2.append(row1)
+            zcost2 = list(zip(*cost2))
+            ids = str(zcost2[0])  # в строку
+            # 3. Проставляем цены списания
+
+            query = "SET SQL_MODE = ''"
+            cursor.execute(query)
+            query = f"""
+            SELECT id, SUM(count) AS quantity, price, date_purchase
+            FROM inventory
+            WHERE id IN {ids} 
+            GROUP BY id, price 
+            """
+            cursor.execute(query)
+            lst_inv = cursor.fetchall()
+            conn.commit()
+            cost3 = []
+            lst_inv.sort(key=lambda date: date[3])  # сортируем по дате
+            lst_inv.sort(key=lambda res_id: res_id[0])  # сортируем по коду
+            for cost in cost2:  # затраты ресурсов для списания
+                i = -1
+                while i < len(lst_inv): # запасы
+                    i += 1
+                    if cost[0] == lst_inv[i][0]:
+                        if lst_inv[i][1] >= cost[1]:   # строка запасов больше списания
+                            row = (cost[0], -cost[1], lst_inv[i][2], cost[3])
+                            cost3.append(row)
+                            break
+                        # строка запасов меньше списания
+                        while cost[1] > 0:
+                            if cost[0] == lst_inv[i][0]:
+                                cost[1] -= lst_inv[i][1]
+                                price = lst_inv[i][2]
+                                date = cost[3]
+                                row = [cost[0], -lst_inv[i][1], price, date]
+                                cost3.append(row)
+                                i += 1
+                            elif cost[0] != lst_inv[i][0] and cost[1] > 0:
+                                msg = QMessageBox()
+                                msg.setWindowTitle("Недостаточно запасов")
+                                msg.setText("Недостаточно запасов ресурса " +
+                                            dict_res[cost[0]] + ". Требуется ещё "+
+                                            str(cost[1]))
+                                msg.setIcon(QMessageBox.Warning)
+                                msg.exec_()
+                                return
+
+            # 3. Списываем
+            query = '''
+            INSERT INTO inventory (id, count, price, date_purchase)
+            VALUES (%s, %s, %s, DATE(%s))
+            '''
+            cursor.executemany(query, cost3)
             conn.commit()
 
             self.info_label.setText("Сохранено.")

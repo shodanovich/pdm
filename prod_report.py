@@ -2,6 +2,7 @@ from datetime import date
 from PyQt5 import QtCore
 from PyQt5.QtWidgets import *
 from edit_tables import EditTables
+from commons import *
 
 class ProdReport(QWidget):
     def __init__(self):
@@ -51,7 +52,7 @@ class ProdReport(QWidget):
         AND inventory.date_purchase <= CAST('{str_date2}' AS DATE) 
         ORDER BY name
         """
-        self.lst_res = EditTables.read_table(EditTables, query)
+        self.lst_res = read_table(query)
         zlst = list(zip(*self.lst_res))  # транспонируем список
         ids = zlst[0]  # коды
         names = zlst[1]  # наименования
@@ -65,7 +66,7 @@ class ProdReport(QWidget):
         AND shiftrep.daterep BETWEEN CAST('{str_date1}' AS DATE) 
                               AND CAST('{str_date2}' AS DATE);
         """
-        production = EditTables.read_table(EditTables, query)
+        production = read_table(query)
         production.sort(key=lambda pr_id: pr_id[0])  # сортируем по коду
         zlst = list(zip(*production))  # транспонируем список
         ids_products = zlst[0]  # коды
@@ -139,7 +140,7 @@ class ProdReport(QWidget):
         self.table.setRowCount(0)  # количество строк = 0
 
         # затраты на единицу
-        self.lst_costs = self.get_costs(ids_products)
+        self.lst_costs = get_costs(ids_products)
 
         # вывод
         its = [0.0 for j in range(columnCount)]
@@ -202,52 +203,52 @@ class ProdReport(QWidget):
             else:
                 self.table.setItem(row, j, QTableWidgetItem('{:>15s}'.format('---')))
 
-    # затраты на единицу продукции
-    def get_costs(self, ids):
-        # читаем все нормативы затрат
-        query = "SELECT res1_id, res2_id, cost FROM costs"
-        lst = EditTables.read_table(EditTables,query)
-        # собираем затраты на id_
-        self.it_lst = []
-        for id_ in ids:
-            cost = 1
-            self.eval_costs(id_, lst, cost)
-            # убираем из списка материалов полуфабрикаты
-            zlst = list(zip(*self.it_lst))  # транспонируем список
-            res_ids = zlst[1]  # коды ресурсов, куда входит res_id1
-            self.it_lst = [x1 for x1 in self.it_lst if x1[0] not in res_ids]
-            # заменяем вторые коды на id_
-            for row in self.it_lst:
-                if row[1] not in ids:
-                    row[1] = id_
+    # # затраты на единицу продукции
+    # def get_costs(self, ids):
+    #     # читаем все нормативы затрат
+    #     query = "SELECT res1_id, res2_id, cost FROM costs"
+    #     lst = read_table(query)
+    #     # собираем затраты на id_
+    #     self.it_lst = []
+    #     for id_ in ids:
+    #         cost = 1
+    #         self.eval_costs(id_, lst, cost)
+    #         # убираем из списка материалов полуфабрикаты
+    #         zlst = list(zip(*self.it_lst))  # транспонируем список
+    #         res_ids = zlst[1]  # коды ресурсов, куда входит res_id1
+    #         self.it_lst = [x1 for x1 in self.it_lst if x1[0] not in res_ids]
+    #         # заменяем вторые коды на id_
+    #         for row in self.it_lst:
+    #             if row[1] not in ids:
+    #                 row[1] = id_
+    #
+    #     self.it_lst.sort(key=lambda res_id: res_id[1])  # сортируем по второму коду
+    #     self.it_lst.sort(key=lambda res_id: res_id[0])  # сортируем по первому коду
+    #
+    #     # свернем по этим кодам:
+    #     i = 0; lst_s = []
+    #     while i < len(self.it_lst):
+    #         id0 = self.it_lst[i][0]
+    #         while (i < len(self.it_lst)) and (id0 == self.it_lst[i][0]):
+    #             sum = 0.0
+    #             id1 = self.it_lst[i][1]
+    #             while i < len(self.it_lst) and (id0 == self.it_lst[i][0]) \
+    #                     and (id1 == self.it_lst[i][1]):
+    #                 sum += self.it_lst[i][2]
+    #                 i += 1
+    #             lst_i = [id0, id1, sum]
+    #             lst_s.append(lst_i)
+    #
+    #     return lst_s
 
-        self.it_lst.sort(key=lambda res_id: res_id[1])  # сортируем по второму коду
-        self.it_lst.sort(key=lambda res_id: res_id[0])  # сортируем по первому коду
-
-        # свернем по этим кодам:
-        i = 0; lst_s = []
-        while i < len(self.it_lst):
-            id0 = self.it_lst[i][0]
-            while (i < len(self.it_lst)) and (id0 == self.it_lst[i][0]):
-                sum = 0.0
-                id1 = self.it_lst[i][1]
-                while i < len(self.it_lst) and (id0 == self.it_lst[i][0]) \
-                        and (id1 == self.it_lst[i][1]):
-                    sum += self.it_lst[i][2]
-                    i += 1
-                lst_i = [id0, id1, sum]
-                lst_s.append(lst_i)
-
-        return lst_s
-
-    # затраты покупных материалов на изделие
-    def eval_costs(self, id_, lst, cost = 1):
-        lst1 = [list(x) for x in lst if x[1]==id_]
-        if not lst1:
-            return
-        for i, row in enumerate(lst1):
-            row[2] *= cost
-            self.it_lst.append(row)
-            id_ = row[0]
-            self.eval_costs(id_, lst, row[2])
+    # # затраты покупных материалов на изделие
+    # def eval_costs(self, id_, lst, cost = 1):
+    #     lst1 = [list(x) for x in lst if x[1]==id_]
+    #     if not lst1:
+    #         return
+    #     for i, row in enumerate(lst1):
+    #         row[2] *= cost
+    #         self.it_lst.append(row)
+    #         id_ = row[0]
+    #         self.eval_costs(id_, lst, row[2])
 

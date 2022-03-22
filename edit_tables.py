@@ -5,6 +5,7 @@ from PyQt5.QtWidgets import (QWidget, QPushButton, QComboBox,
 
 import edit_res
 from mysql_dbconf import get_db_params
+from commons import *
 
 class EditTables(QWidget):
     """
@@ -40,7 +41,7 @@ class EditTables(QWidget):
             unique_list = [int(x.strip()) for x in unique.split(',')]
             tab.itemChanged.connect(lambda: self.check_unique(unique_list))
 
-        lst_table = self.read_table(select_query)
+        lst_table = read_table(select_query)
         # i - число записей, вставленных в QTableWidget
         i = self.insert_to_table(lst_table, tab)
         # строка состояния
@@ -114,21 +115,6 @@ class EditTables(QWidget):
     def out(self):
         self.save_table()
         self.close()
-
-    # читаем данные из БД в QTableWidget
-    def read_table(self,param=''):
-        result = ()
-        db_config = get_db_params()
-        try:
-            with connect(**db_config) as conn:
-                cursor = conn.cursor()
-                cursor.execute(param)
-                result = cursor.fetchall()  # данных немного, читаем все
-        except Error as e:
-            print("Error: ", e)
-        finally:
-            return result
-
 
     def insert_to_table(self,lst_table,tab):
         """

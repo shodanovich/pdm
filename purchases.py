@@ -4,6 +4,7 @@ from PyQt5 import QtWidgets
 from PyQt5.QtWidgets import *
 from edit_tables import EditTables
 from mysql_dbconf import get_db_params
+from commons import *
 
 
 class Purchases(EditTables):
@@ -21,13 +22,8 @@ class Purchases(EditTables):
 
         self.table.setColumnWidth(2, 20)  # здесь будет кнопка
 
-        # Таблица ресурсов. Отсюда будем выбирать в QComboBox
-        query = """
-        SELECT DISTINCT resources.* from resources, costs
-        WHERE resources.id = costs.res1_id 
-        AND NOT EXISTS (SELECT * FROM costs WHERE resources.id = costs.res2_id) 
-        """
-        self.lst_res = self.read_table(query)
+        # Таблица ресурсов без изделий
+        self.lst_res = get_resources()
         zlst = list(zip(*self.lst_res))  # транспонируем список
         self.ids = zlst[0]  # коды
         self.names = zlst[1]  # наименования
@@ -107,7 +103,7 @@ class Purchases(EditTables):
         WHERE inventory.id = resources.id 
         AND inventory.date_purchase = DATE('{str(date_)}')
         """
-        result = self.read_table(query)
+        result = read_table(query)
         # заполняем QWidgetTable
         self.table.setRowCount(0)
         for row in result:

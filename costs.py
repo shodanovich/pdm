@@ -3,8 +3,8 @@ from PyQt5 import QtWidgets
 from PyQt5.QtWidgets import (QWidget, QPushButton,
                              QHBoxLayout, QVBoxLayout,
                              QComboBox)
-from mysql_dbconf import get_db_params
 from edit_tables import EditTables
+from commons import *
 
 class Costs(EditTables):
     def __init__(self, params):
@@ -17,7 +17,7 @@ class Costs(EditTables):
         self.prod_box = QComboBox()
         # выбираем изделия из базы (строка запроса с нулевой ценой)
         query = "SELECT * from resources"
-        self.lst_prod = self.read_table(query)
+        self.lst_prod = read_table(query)
         # и заполняем prod_box
         for prod in self.lst_prod:
             self.prod_box.addItem(prod[1])
@@ -30,7 +30,7 @@ class Costs(EditTables):
 
         # Таблица ресурсов. Отсюда будем всё выбирать
         query = "SELECT * FROM resources ORDER BY name"
-        self.lst_res = self.read_table(query)
+        self.lst_res = read_table(query)
         zlst = list(zip(*self.lst_res))  # транспонируем список
         self.names = zlst[1]        # здесь наименования
 
