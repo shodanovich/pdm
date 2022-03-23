@@ -24,7 +24,8 @@ def create_db():
             CREATE TABLE resources (
                 id INT PRIMARY KEY,
                 name VARCHAR(256),
-                measure VARCHAR(10)
+                measure VARCHAR(10),
+                typeres CHAR(1)
                 );
             CREATE TABLE costs ( 
                 res1_id INT,

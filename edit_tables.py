@@ -98,6 +98,8 @@ class EditTables(QWidget):
         tab = self.table
         if tab.rowCount() == 1:
             return
+        if tab.currentColumn() not in col_list:
+            return
         current_column = tab.currentColumn()
         current_row = tab.currentRow()
         current_text = tab.currentItem().text()
@@ -105,8 +107,7 @@ class EditTables(QWidget):
         not_unique = [row for row in range(tab.rowCount()-1) if(
                 row != current_row
                 and tab.currentItem()
-                and tab.item(row, current_column).text() == current_text
-                and current_column in col_list)]
+                and tab.item(row, current_column).text() == current_text)]
         if not_unique:
             QMessageBox.warning(self, "Поле не уникально!",
                                 "Запись не будет добавлена в таблицу.")

@@ -8,12 +8,12 @@ class ProdReport(QWidget):
     def __init__(self):
         super().__init__()
 
-        self.setWindowTitle('Отчет по производству и затратам')
+        self.setWindowTitle('Отчет по производству, затратам и заработной плате')
         self.setGeometry(400,400,900,500)
 
         self.lst_costs = [] # для рекурсивной функции
 
-        # размещаем даты и кнопку в горизонтальном боксе
+        # размещаем даты, кнопку и QCheckBox в горизонтальном боксе
         self.date1 = QDateEdit(date.today())
         self.date2 = QDateEdit(date.today())
         self.hbox = QHBoxLayout()
@@ -22,6 +22,8 @@ class ProdReport(QWidget):
         self.hbox.addWidget(QLabel(" по "))
         self.hbox.addWidget(self.date2)
         self.hbox.addStretch()
+        self.check = QCheckBox("Заработная плата")
+        self.hbox.addWidget(self.check)
         btn_start = QPushButton("Сформировать")
         btn_start.clicked.connect(self.start_rep)
         self.hbox.addWidget(btn_start)
@@ -44,15 +46,28 @@ class ProdReport(QWidget):
     def start_rep(self):
         str_date1 = str(self.date1.date().toPyDate())
         str_date2 = str(self.date2.date().toPyDate())
+        typeres = 'р'
+        if self.check.isChecked():
+            sal = f" AND resources.typeres = '{typeres}' "
+        else:
+            sal = f" AND resources.typeres <> '{typeres}' "
         # читаем ресурсы
         query = f"""
-        SELECT resources.*, inventory.price 
+        SELECT resources.id, resources.name, resources.measure, inventory.price 
         FROM resources, inventory
-        WHERE resources.id = inventory.id
-        AND inventory.date_purchase <= CAST('{str_date2}' AS DATE) 
+        WHERE resources.id = inventory.id """ + sal +\
+        f"""AND inventory.date_purchase <= CAST('{str_date2}' AS DATE) 
         ORDER BY name
         """
         self.lst_res = read_table(query)
+        if not self.lst_res:
+            msg = QMessageBox()
+            msg.setWindowTitle("Нет данных")
+            msg.setText("Нет данных по ресурсам. Возможно, не было закупок до "+
+                        str_date2)
+            msg.setIcon(QMessageBox.Warning)
+            msg.exec_()
+            return
         zlst = list(zip(*self.lst_res))  # транспонируем список
         ids = zlst[0]  # коды
         names = zlst[1]  # наименования
@@ -146,14 +161,21 @@ class ProdReport(QWidget):
         its = [0.0 for j in range(columnCount)]
         i = 0
         while True:
+            # достаем ресурс из lst_res
+            res = list(filter(lambda x: self.lst_costs[i][0] in x
+                            if self.lst_costs[i][0] == x[0] else None, self.lst_res)
+                       )
+            if not res:
+                i += 1
+                if i >= len(self.lst_costs):
+                    break
+                continue
+
+            ## - формируем строку для вывода
             id0 = self.lst_costs[i][0]
             j = 1   # столбец для вывода затрат
             self.table.insertRow(self.table.rowCount())
             row  = self.table.rowCount() - 1
-            # достаем ресурс из lst_res
-            res = list(filter(lambda x: self.lst_costs[i][0] in x
-                             if self.lst_costs[i][0] == x[0] else None, self.lst_res))
-            ## - формируем строку для вывода
             name_measure = res[0][1]+" ("+res[0][2]+")" # наименование+ед. изм
             self.table.setItem(row, 0, QTableWidgetItem(name_measure))
             sum_cost, sum_value = 0.0, 0.0

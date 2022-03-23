@@ -59,7 +59,10 @@ class EditRes(EditTables):
                             items_i += ('',)
                     items += (items_i,)
 
-            save_query = "INSERT INTO resources (id, name, measure) VALUES (%s,%s,%s)"
+            save_query = """
+            INSERT INTO resources (id, name, measure, typeres) 
+            VALUES (%s,%s,%s,%s)
+            """
             cursor.executemany(save_query,items)
             conn.commit()
 

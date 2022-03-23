@@ -78,7 +78,7 @@ class Pdm(QMainWindow):
         params = {}
         # параметры QTableWidget
         params['table_params'] = {'title': 'Редактирование ресурсов (работ)',
-                                'columnnames': 'Код, Наименование, Ед. изм.',
+                                'columnnames': 'Код, Наименование, Ед. изм., Тип рес.',
                                 'unique': '0, 1'
                                 }
         # параметры запросов к БД
