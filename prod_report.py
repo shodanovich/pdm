@@ -22,8 +22,15 @@ class ProdReport(QWidget):
         self.hbox.addWidget(QLabel(" по "))
         self.hbox.addWidget(self.date2)
         self.hbox.addStretch()
-        self.check = QCheckBox("Заработная плата")
-        self.hbox.addWidget(self.check)
+
+        self.rb1 = QRadioButton("Заработная плата")
+        self.rb2 = QRadioButton("Материалы")
+        self.rb3 = QRadioButton("Полный отчет")
+        self.rb3.setChecked(True)
+
+        self.hbox.addWidget(self.rb1)
+        self.hbox.addWidget(self.rb2)
+        self.hbox.addWidget(self.rb3)
         btn_start = QPushButton("Сформировать")
         btn_start.clicked.connect(self.start_rep)
         self.hbox.addWidget(btn_start)
@@ -47,10 +54,12 @@ class ProdReport(QWidget):
         str_date1 = str(self.date1.date().toPyDate())
         str_date2 = str(self.date2.date().toPyDate())
         typeres = 'р'
-        if self.check.isChecked():
+        if self.rb1.isChecked():
             sal = f" AND resources.typeres = '{typeres}' "
-        else:
+        elif self.rb2.isChecked():
             sal = f" AND resources.typeres <> '{typeres}' "
+        else:
+            sal = " "
         # читаем ресурсы
         query = f"""
         SELECT resources.id, resources.name, resources.measure, inventory.price 
