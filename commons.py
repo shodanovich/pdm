@@ -42,19 +42,7 @@ def get_costs(ids):
     it_lst.sort(key=lambda res_id: res_id[0])  # сортируем по первому коду
 
     # свернем по этим кодам:
-    i = 0; lst_s = []
-    while i < len(it_lst):
-        id0 = it_lst[i][0]
-        while (i < len(it_lst)) and (id0 == it_lst[i][0]):
-            sum = 0.0
-            id1 = it_lst[i][1]
-            while i < len(it_lst) and (id0 == it_lst[i][0]) \
-                    and (id1 == it_lst[i][1]):
-                sum += it_lst[i][2]
-                i += 1
-            lst_i = [id0, id1, sum]
-            lst_s.append(lst_i)
-
+    lst_s = pack(it_lst,[0,1],*[2])
     return lst_s
 
 # затраты покупных материалов на изделие
@@ -68,19 +56,25 @@ def eval_costs(id_, lst, cost = 1):
         id_ = row[0]
         eval_costs(id_, lst, row[2])
 
-def pack(lst, lst_pack, numr_sum = ''):
+def pack(lst, lst_pack, numr_sum):
     """
     свернуть и подсуммировать по заданным полям
     :param lst: исходный список
-    :param numr_pack: номер элемента lst для упаковки
-    :param numr_sum: номер элемента lst для суммирования
-    :return: lst_s: подсуммированный список
+    :param lst_pack: список коэффициентов lst для упаковки
+    :param numr_sum: список коэффициентов lst для суммирования
+    :return: lst_it: свернутый список
     """
     df = pd.DataFrame(lst)
-    df = df.groupby([0,1])[numr_sum].sum()
+    df = df.groupby(lst_pack)[numr_sum].sum()
     lst_s = list(dict(df).items())
+    lst_it = []
+    for i in range(len(lst_s)):
+        l1 = list(lst_s[i][0])
+        for j in range(1,len(lst_s[i])):
+            l1.append(lst_s[i][j])
+        lst_it.append(l1)
 
-    return lst_s
+    return lst_it
 
 def get_resources():
     query = """

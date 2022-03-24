@@ -13,7 +13,7 @@ class ProdReport(QWidget):
 
         self.lst_costs = [] # для рекурсивной функции
 
-        # размещаем даты, кнопку и QCheckBox в горизонтальном боксе
+        # размещаем даты, кнопку и QRadioButton в горизонтальном боксе
         self.date1 = QDateEdit(date.today())
         self.date2 = QDateEdit(date.today())
         self.hbox = QHBoxLayout()
@@ -22,12 +22,11 @@ class ProdReport(QWidget):
         self.hbox.addWidget(QLabel(" по "))
         self.hbox.addWidget(self.date2)
         self.hbox.addStretch()
-
+        # выбор вида отчета
         self.rb1 = QRadioButton("Заработная плата")
         self.rb2 = QRadioButton("Материалы")
         self.rb3 = QRadioButton("Полный отчет")
         self.rb3.setChecked(True)
-
         self.hbox.addWidget(self.rb1)
         self.hbox.addWidget(self.rb2)
         self.hbox.addWidget(self.rb3)
@@ -95,19 +94,20 @@ class ProdReport(QWidget):
         zlst = list(zip(*production))  # транспонируем список
         ids_products = zlst[0]  # коды
         # свернем production
-        i = 0;
-        lst_s = []
-        while i < len(production):
-            id0 = production[i][0]
-            name = production[i][1]
-            measure = production[i][2]
-            sum = 0.0
-            while (i < len(production)) and (id0 == production[i][0]):
-                sum += production[i][3]
-                i += 1
-            lst_i = [id0, name, measure, sum]
-            lst_s.append(lst_i)
-        production = lst_s
+        production = pack(production,[0,1,2],*[3])
+        # lst_s = []
+        # i = 0
+        # while i < len(production):
+        #     id0 = production[i][0]
+        #     name = production[i][1]
+        #     measure = production[i][2]
+        #     sum = 0.0
+        #     while (i < len(production)) and (id0 == production[i][0]):
+        #         sum += production[i][3]
+        #         i += 1
+        #     lst_i = [id0, name, measure, sum]
+        #     lst_s.append(lst_i)
+        # production = lst_s
 
         # к наименованию добавляем выработку:
         headers = []
@@ -233,53 +233,4 @@ class ProdReport(QWidget):
                 self.table.setItem(row, j, QTableWidgetItem('{:>15.2f}'.format(its1)))
             else:
                 self.table.setItem(row, j, QTableWidgetItem('{:>15s}'.format('---')))
-
-    # # затраты на единицу продукции
-    # def get_costs(self, ids):
-    #     # читаем все нормативы затрат
-    #     query = "SELECT res1_id, res2_id, cost FROM costs"
-    #     lst = read_table(query)
-    #     # собираем затраты на id_
-    #     self.it_lst = []
-    #     for id_ in ids:
-    #         cost = 1
-    #         self.eval_costs(id_, lst, cost)
-    #         # убираем из списка материалов полуфабрикаты
-    #         zlst = list(zip(*self.it_lst))  # транспонируем список
-    #         res_ids = zlst[1]  # коды ресурсов, куда входит res_id1
-    #         self.it_lst = [x1 for x1 in self.it_lst if x1[0] not in res_ids]
-    #         # заменяем вторые коды на id_
-    #         for row in self.it_lst:
-    #             if row[1] not in ids:
-    #                 row[1] = id_
-    #
-    #     self.it_lst.sort(key=lambda res_id: res_id[1])  # сортируем по второму коду
-    #     self.it_lst.sort(key=lambda res_id: res_id[0])  # сортируем по первому коду
-    #
-    #     # свернем по этим кодам:
-    #     i = 0; lst_s = []
-    #     while i < len(self.it_lst):
-    #         id0 = self.it_lst[i][0]
-    #         while (i < len(self.it_lst)) and (id0 == self.it_lst[i][0]):
-    #             sum = 0.0
-    #             id1 = self.it_lst[i][1]
-    #             while i < len(self.it_lst) and (id0 == self.it_lst[i][0]) \
-    #                     and (id1 == self.it_lst[i][1]):
-    #                 sum += self.it_lst[i][2]
-    #                 i += 1
-    #             lst_i = [id0, id1, sum]
-    #             lst_s.append(lst_i)
-    #
-    #     return lst_s
-
-    # # затраты покупных материалов на изделие
-    # def eval_costs(self, id_, lst, cost = 1):
-    #     lst1 = [list(x) for x in lst if x[1]==id_]
-    #     if not lst1:
-    #         return
-    #     for i, row in enumerate(lst1):
-    #         row[2] *= cost
-    #         self.it_lst.append(row)
-    #         id_ = row[0]
-    #         self.eval_costs(id_, lst, row[2])
 
