@@ -61,7 +61,8 @@ class ProdReport(QWidget):
             sal = " "
         # читаем ресурсы
         query = f"""
-        SELECT resources.id, resources.name, resources.measure, inventory.price 
+        SELECT resources.id, resources.name, resources.measure, inventory.price,
+        resources.typeres 
         FROM resources, inventory
         WHERE resources.id = inventory.id """ + sal +\
         f"""AND inventory.date_purchase <= CAST('{str_date2}' AS DATE) 
@@ -81,6 +82,25 @@ class ProdReport(QWidget):
         names = zlst[1]  # наименования
         self.dict_res = dict(zip(ids, names)) # в словарь их
 
+        # запасы ресурсов
+        db_config = get_db_params()
+        conn = connect(**db_config)
+        cursor = conn.cursor()
+        query = "SET SQL_MODE = ''"
+        cursor.execute(query)
+        query = f"""
+        SELECT inventory.id, SUM(inventory.count) AS quantity, inventory.price
+        FROM inventory, resources
+        WHERE inventory.id IN {ids}
+        AND inventory.id = resources.id
+        AND resources.typeres <> 'р' 
+        AND date_purchase <= CAST('{str_date2}' AS DATE)
+        GROUP BY id, price 
+        """
+        cursor.execute(query)
+        lst_inv = cursor.fetchall()
+        lst_inv.sort(key=lambda _id: _id[0])
+
         # выработка
         query = f"""
         SELECT shiftrep.id, resources.name, resources.measure, shiftrep.count 
@@ -95,19 +115,6 @@ class ProdReport(QWidget):
         ids_products = zlst[0]  # коды
         # свернем production
         production = pack(production,[0,1,2],*[3])
-        # lst_s = []
-        # i = 0
-        # while i < len(production):
-        #     id0 = production[i][0]
-        #     name = production[i][1]
-        #     measure = production[i][2]
-        #     sum = 0.0
-        #     while (i < len(production)) and (id0 == production[i][0]):
-        #         sum += production[i][3]
-        #         i += 1
-        #     lst_i = [id0, name, measure, sum]
-        #     lst_s.append(lst_i)
-        # production = lst_s
 
         # к наименованию добавляем выработку:
         headers = []
@@ -115,31 +122,37 @@ class ProdReport(QWidget):
             headers += [row[1] + "(" + str(row[3]) + ")"]
 
         # количество колонок в таблицах вывода
-        columnCount = 1 + 2*len(headers) + 2
+        # 1 на наим., по 2 колонки на продукцию, 2 на итоги и 2 на остатки материалов
+        columnCount = 1 + 2*len(headers) + 2 + 2
         # формируем заголовки таблицы вывода
         self.header_table.horizontalHeader().setHidden(True)
         self.header_table.verticalHeader().setHidden(True)
         self.header_table.setColumnCount(columnCount)
         self.header_table.setRowCount(0)
 
+        # первая строка заголовка
         self.header_table.insertRow(self.header_table.rowCount())
-        # первая строчка
         item = QTableWidgetItem("Ресурсы")
         item.setTextAlignment(QtCore.Qt.AlignCenter)
         self.header_table.setItem(0, 0, item)
+        # растягиваем первый столбец
         self.header_table.horizontalHeader().setSectionResizeMode(0,QHeaderView.Stretch);
-
         # затраты ресурсов
-        # первая строка заголовка
         for i, head in enumerate(headers):
             self.header_table.setSpan(0, 1+i*2, 1, 2);  # объединить ячейки
             item = QTableWidgetItem(headers[i])
             item.setTextAlignment(QtCore.Qt.AlignCenter)
             self.header_table.setItem(0, 1+i*2, item)
+
         self.header_table.setSpan(0, 1+(i+1)*2, 1, 2)
         item = QTableWidgetItem("Итого")
         item.setTextAlignment(QtCore.Qt.AlignCenter)
         self.header_table.setItem(0, 1 + i * 2 +2, item)
+
+        self.header_table.setSpan(0, 1+(i+1)*2+2, 1, 2)
+        item = QTableWidgetItem("Остатки ресурсов")
+        item.setTextAlignment(QtCore.Qt.AlignCenter)
+        self.header_table.setItem(0, 1 + i*2 + 4, item)
 
         # вторая строка заголовка
         self.header_table.insertRow(self.header_table.rowCount())
@@ -162,6 +175,8 @@ class ProdReport(QWidget):
         for j in range(columnCount):
             self.table.setColumnWidth(j,self.header_table.columnWidth(j))
         self.table.setRowCount(0)  # количество строк = 0
+        # растягиваем первую колонку
+        self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch);
 
         # затраты на единицу
         self.lst_costs = get_costs(ids_products)
@@ -211,6 +226,18 @@ class ProdReport(QWidget):
             its[j+1] += sum_value
             self.table.setItem(row, j, QTableWidgetItem('{:>15.3f}'.format(sum_cost)))
             self.table.setItem(row, j + 1, QTableWidgetItem('{:>15.2f}'.format(sum_value)))
+            # остатки материалов
+            j += 2
+            inv = list(filter(lambda x: id0 in x
+                        if id0 == x[0] else None, lst_inv))
+            if inv and (res[0][4] != 'р'):
+                self.table.setItem(row, j, QTableWidgetItem('{:>15.3f}'.format(inv[0][1])))
+                value = inv[0][1] * inv[0][2]
+                its[j+1] += value
+                self.table.setItem(row,j+1,QTableWidgetItem('{:>15.2f}'.format(value)))
+            else:
+                self.table.setItem(row,j, QTableWidgetItem('{:>15s}'.format('---')))
+                self.table.setItem(row, j+1, QTableWidgetItem('{:>15s}'.format('---')))
             if i >= len(self.lst_costs):
                 break
         # суммы по столбцам
@@ -226,11 +253,14 @@ class ProdReport(QWidget):
         self.table.insertRow(self.table.rowCount())
         row = self.table.rowCount() - 1
         self.table.setItem(row, 0, QTableWidgetItem('Затраты на единицу продукции:'))
-        for j in range(1, columnCount-2):
-            if its[j] != 0.0:
-                count = production[j // 2 - 1][3]
-                its1 = its[j] / count
-                self.table.setItem(row, j, QTableWidgetItem('{:>15.2f}'.format(its1)))
+        for j in range(1, columnCount):
+            if j < columnCount - 4:
+                if its[j] != 0.0:
+                    count = production[j // 2 - 1][3]
+                    its1 = its[j] / count
+                    self.table.setItem(row, j, QTableWidgetItem('{:>15.2f}'.format(its1)))
+                else:
+                    self.table.setItem(row, j, QTableWidgetItem('{:>15s}'.format('---')))
             else:
                 self.table.setItem(row, j, QTableWidgetItem('{:>15s}'.format('---')))
 

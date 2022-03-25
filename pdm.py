@@ -37,7 +37,7 @@ class Pdm(QMainWindow):
         edit_res_action.triggered.connect(self.edit_res)
         res_menu.addAction(edit_res_action)
         # закупки
-        purchases_action = QAction('&Закупки', self)
+        purchases_action = QAction('&Закупки, списание', self)
         purchases_action.triggered.connect(self.purchases)
         res_menu.addAction(purchases_action)
 
@@ -89,7 +89,7 @@ class Pdm(QMainWindow):
 
     def purchases(self):
         params = {}
-        params['table_params'] = {'title': 'Закупки материалов, прием сотрудников',
+        params['table_params'] = {'title': 'Закупки и списание материалов, прием сотрудников',
                                   'columnnames':
                                       'Код, Наименование, , Ед.\nизм., Количество,Цена'
                                   }

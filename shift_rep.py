@@ -118,10 +118,10 @@ class ShiftRep(EditTables):
             conn.commit()
             # списываем материалы по методу FIFO
             # ресурсы
-            lst = get_resources()
-            zlst = list(zip(*lst))  # транспонируем список
+            #lst = get_resources()
+            #zlst = list(zip(*lst))  # транспонируем список
             # словарь кодов и наименований ресурсов
-            dict_res = dict(zip(zlst[0], zlst[1]))
+            # dict_res = dict(zip(zlst[0], zlst[1]))
             # 1. Затраты на ед.:
             zitems =  list(zip(*items))  # транспонируем список
             ids = zitems[1]     # коды
@@ -136,13 +136,14 @@ class ShiftRep(EditTables):
             zcost2 = list(zip(*cost2))
             ids = str(zcost2[0])  # в строку
             # 3. Проставляем цены списания
-
             query = "SET SQL_MODE = ''"
             cursor.execute(query)
             query = f"""
-            SELECT id, SUM(count) AS quantity, price, date_purchase
-            FROM inventory
-            WHERE id IN {ids} 
+            SELECT inventory.id, SUM(inventory.count) AS quantity, inventory.price, 
+            inventory.date_purchase, resources.name, resources.measure, resources.typeres
+            FROM inventory, resources
+            WHERE inventory.id IN {ids}
+            AND inventory.id = resources.id
             GROUP BY id, price 
             """
             cursor.execute(query)
@@ -155,6 +156,10 @@ class ShiftRep(EditTables):
                 i = -1
                 while i < len(lst_inv): # запасы
                     i += 1
+                    if i == len(lst_inv):
+                        break
+                    if lst_inv[i][6] == 'р':    # работников не списываем
+                        continue
                     if cost[0] == lst_inv[i][0]:
                         if lst_inv[i][1] >= cost[1]:   # строка запасов больше списания
                             row = (cost[0], -cost[1], lst_inv[i][2], cost[3])
@@ -173,8 +178,8 @@ class ShiftRep(EditTables):
                                 msg = QMessageBox()
                                 msg.setWindowTitle("Недостаточно запасов")
                                 msg.setText("Недостаточно запасов ресурса " +
-                                            dict_res[cost[0]] + ". Требуется ещё "+
-                                            str(cost[1]))
+                                            lst_inv[i][4] + ". Требуется ещё "+
+                                            str(cost[1])) + lst_inv[i][5]
                                 msg.setIcon(QMessageBox.Warning)
                                 msg.exec_()
                                 return
