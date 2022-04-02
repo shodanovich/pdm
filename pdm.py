@@ -10,6 +10,7 @@ from shift_rep import ShiftRep
 import costs        # нормативы затрат
 from prod_report import ProdReport
 from purchases import Purchases
+from plan1 import Plan1
 
 class Pdm(QMainWindow):
     def __init__(self):
@@ -60,13 +61,11 @@ class Pdm(QMainWindow):
         production_menu.addAction(prod_report_action)
 
         # меню Планирование
-        plan_menu = menubar.addMenu('&Планирование')
+        plan_menu = menubar.addMenu('Планирование')
         # план исходя из имеющихся запасов
-        plan1_action = QAction('&План исходя из имеющихся запасов')
+        plan1_action = QAction('План производства с учетом запасов',self)
+        plan1_action.triggered.connect(self.plan1)
         plan_menu.addAction(plan1_action)
-        # план и расчет потребностей в ресурсах
-        plan2_action = QAction('&Расчет запасов по плану продукции')
-        plan_menu.addAction(plan2_action)
 
         self.setGeometry(300, 300, 600, 200)
         self.setWindowTitle('Управление производственным участком')
@@ -133,13 +132,18 @@ class Pdm(QMainWindow):
         self.prod_rep = ProdReport()
         self.prod_rep.show()
 
+    def plan1(self):
+        self._plan1 = Plan1()
+        self._plan1.show()
+
+
 def first_launch():
     db_config = get_db_params()
     try:
         # при успешном соединении ничего не делаем
         conn = connect(**db_config)
         return
-    except Error as e:
+    except Error:
         # создаем базу данных
        create_db()
 

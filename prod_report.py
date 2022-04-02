@@ -1,7 +1,6 @@
 from datetime import date
-from PyQt5 import QtCore
+from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import *
-from edit_tables import EditTables
 from commons import *
 
 class ProdReport(QWidget):
@@ -133,7 +132,7 @@ class ProdReport(QWidget):
         # первая строка заголовка
         self.header_table.insertRow(self.header_table.rowCount())
         item = QTableWidgetItem("Ресурсы")
-        item.setTextAlignment(QtCore.Qt.AlignCenter)
+        item.setTextAlignment(Qt.AlignCenter)
         self.header_table.setItem(0, 0, item)
         # растягиваем первый столбец
         self.header_table.horizontalHeader().setSectionResizeMode(0,QHeaderView.Stretch);
@@ -141,17 +140,17 @@ class ProdReport(QWidget):
         for i, head in enumerate(headers):
             self.header_table.setSpan(0, 1+i*2, 1, 2);  # объединить ячейки
             item = QTableWidgetItem(headers[i])
-            item.setTextAlignment(QtCore.Qt.AlignCenter)
+            item.setTextAlignment(Qt.AlignCenter)
             self.header_table.setItem(0, 1+i*2, item)
 
         self.header_table.setSpan(0, 1+(i+1)*2, 1, 2)
         item = QTableWidgetItem("Итого")
-        item.setTextAlignment(QtCore.Qt.AlignCenter)
+        item.setTextAlignment(Qt.AlignCenter)
         self.header_table.setItem(0, 1 + i * 2 +2, item)
 
         self.header_table.setSpan(0, 1+(i+1)*2+2, 1, 2)
         item = QTableWidgetItem("Остатки ресурсов")
-        item.setTextAlignment(QtCore.Qt.AlignCenter)
+        item.setTextAlignment(Qt.AlignCenter)
         self.header_table.setItem(0, 1 + i*2 + 4, item)
 
         # вторая строка заголовка

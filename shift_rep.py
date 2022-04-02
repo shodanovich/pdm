@@ -1,12 +1,10 @@
 from datetime import date
-from mysql.connector import connect, Error
 from PyQt5 import QtWidgets
 from PyQt5.QtWidgets import (QDateEdit,
                              QLabel,
                              QHBoxLayout,
                              QMessageBox)
 from edit_tables import EditTables
-from mysql_dbconf import get_db_params
 from commons import *
 
 
@@ -116,12 +114,8 @@ class ShiftRep(EditTables):
             """
             cursor.execute(query)
             conn.commit()
-            # списываем материалы по методу FIFO
+            ### списываем материалы по методу FIFO
             # ресурсы
-            #lst = get_resources()
-            #zlst = list(zip(*lst))  # транспонируем список
-            # словарь кодов и наименований ресурсов
-            # dict_res = dict(zip(zlst[0], zlst[1]))
             # 1. Затраты на ед.:
             zitems =  list(zip(*items))  # транспонируем список
             ids = zitems[1]     # коды

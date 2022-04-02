@@ -68,11 +68,14 @@ def pack(lst, lst_pack, numr_sum):
     df = df.groupby(lst_pack)[numr_sum].sum()
     lst_s = list(dict(df).items())
     lst_it = []
-    for i in range(len(lst_s)):
-        l1 = list(lst_s[i][0])
-        for j in range(1,len(lst_s[i])):
-            l1.append(lst_s[i][j])
-        lst_it.append(l1)
+    if len(lst_pack) > 1:
+        for i in range(len(lst_s)):
+            l1 = list(lst_s[i][0])
+            for j in range(1,len(lst_s[i])):
+                l1.append(lst_s[i][j])
+            lst_it.append(l1)
+    else:
+        lst_it = [list(x) for x in lst_s]
 
     return lst_it
 
