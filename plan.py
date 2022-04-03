@@ -6,7 +6,7 @@ from commons import *
 
 VBN = 9999.99   # very big bumber
 
-class Plan1(QWidget):
+class Plan(QWidget):
     def __init__(self):
         super().__init__()
         # окно для выбора параметров плана
@@ -37,21 +37,22 @@ class Plan1(QWidget):
         self.table_res.verticalHeader().setHidden(True)
 
         # план продукции
-        tab_prod = self.table_prod = QTableWidget()
+        tab_plan = self.table_plan = QTableWidget()
         headers_list = ["Код", "Наименование изделия","План"]
         column_count = len(headers_list)
-        tab_prod.setColumnCount(column_count)
-        tab_prod.setHorizontalHeaderLabels(headers_list)
-        tab_prod.setRowCount(0)
-        tab_prod.setColumnWidth(0,40)
-        header = tab_prod.horizontalHeader()
+        tab_plan.setColumnCount(column_count)
+        tab_plan.setHorizontalHeaderLabels(headers_list)
+        tab_plan.setRowCount(0)
+        tab_plan.setColumnWidth(0,40)
+        header = tab_plan.horizontalHeader()
         header.setSectionResizeMode(1, QHeaderView.Stretch)
-        tab_prod.verticalHeader().setHidden(True)   # нет боковым заголовкам
+        tab_plan.verticalHeader().setHidden(True)   # нет боковым заголовкам
+        self.table_plan.itemChanged.connect(self.on_change_plan)
 
         hbox2 = QHBoxLayout()
         # пропорции 3:2
         hbox2.addWidget(tab_res,3)
-        hbox2.addWidget(tab_prod,2)
+        hbox2.addWidget(tab_plan,2)
 
         # всё в вертикальный бокс
         self.vbox = QVBoxLayout()
@@ -70,10 +71,13 @@ class Plan1(QWidget):
         zlst = list(zip(*lst_prod))  # транспонируем список
         ids = zlst[0]  # коды изделий
         # заполняем таблицу плана
+        self.table_plan.blockSignals(True)  # блокируем сигналы в QWidgetTable
         for i in range(len(lst_prod)):
-            self.table_prod.insertRow(i)
+            self.table_plan.insertRow(i)
             for j in range(len(lst_prod[i])):
-                self.table_prod.setItem(i, j, QTableWidgetItem(str(lst_prod[i][j])))
+                self.table_plan.setItem(i, j, QTableWidgetItem(str(lst_prod[i][j])))
+        self.table_plan.blockSignals(False)
+
 
         # запасы ресурсов
         lst_inv = self.get_inventory(ids) # получить ресурсы, имеющиеся в наличии
@@ -86,6 +90,14 @@ class Plan1(QWidget):
             self.table_res.setItem(i,1, QTableWidgetItem(lst_inv[i][1]))
             self.table_res.setItem(i,2,
                         QTableWidgetItem(str('{:>15.3f}'.format(rhs_ineq[i]))))
+
+    def on_change_plan(self):
+        # пересчитываем потребность в ресурсах
+        lst_prod = self.get_prod()
+        ids = list(zip(*lst_prod))[0]  # коды изделий
+        costs = get_costs(ids)  # затраты на ед.
+        self.res_plan(costs, lst_prod)  # затраты ресурсов на план
+        pass
 
     def get_prod(self):
         # изделия
@@ -115,7 +127,7 @@ class Plan1(QWidget):
         return(read_table(query))
 
     def start_pl(self):
-        # 1. obj[]. Целевая функция
+        # 1. obj[]. Целевая функция.
         lst_prod = self.get_prod()
         zlst = list(zip(*lst_prod))  # транспонируем список
         ids = zlst[0]  # коды изделий
@@ -151,14 +163,23 @@ class Plan1(QWidget):
 
         # заполнияем список продукции и таблицу плана
         lst_prod = self.get_prod()  # коды и наименования готовой продукции
-        lst_prod = [list(x) for x in lst_prod]
 
+        self.table_plan.blockSignals(True)
         for i in range(len(lst_prod)):
-            lst_prod[i].append(opt.x[i])    # дополняем их планом
-            self.table_prod.setItem(i,2,
-                QTableWidgetItem(str('{:>15.3f}'.format(opt.x[i]))))
+            # дополняем их планом
+            self.table_plan.setItem(i, 2,
+                      QTableWidgetItem(str('{:>15.3f}'.format(opt.x[i]))))
+            #lst_prod[i].append(float(self.table_plan.item(i,2).text()))
 
+        self.table_plan.blockSignals(False)
+        # потребности в ресурсах на план
+        self.res_plan(costs, lst_prod)
+
+    def res_plan(self, costs, lst_prod):
         # вычисляем потребности в ресурсах на план
+        lst_prod = [list(x) for x in lst_prod]
+        for i in range(self.table_plan.rowCount()):
+            lst_prod[i].append(float(self.table_plan.item(i,2).text()))
         it_lst = []
         for i, cost in enumerate(costs):
             prod_i = list(filter(lambda x: cost[1] in x if cost[1] == x[0]

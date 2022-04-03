@@ -52,7 +52,6 @@ class Costs(EditTables):
 
         self.show()
 
-
     # выбрали изделие, собираем и добавляем затраты на него
     def change_prod(self,lst_prod):
         if not lst_prod:
@@ -93,8 +92,6 @@ class Costs(EditTables):
             self.table.setItem(i, 1, QtWidgets.QTableWidgetItem(str(row[1])))
             self.table.setItem(i, 3, QtWidgets.QTableWidgetItem(str(row[2])))
             self.table.setItem(i, 4, QtWidgets.QTableWidgetItem(str(row[3])))
-
-            # обработка выбора в QComboBox
 
     def change_res_box(self):
         lst = self.lst_res

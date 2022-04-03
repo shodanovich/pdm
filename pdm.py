@@ -10,7 +10,7 @@ from shift_rep import ShiftRep
 import costs        # нормативы затрат
 from prod_report import ProdReport
 from purchases import Purchases
-from plan1 import Plan1
+from plan import Plan
 
 class Pdm(QMainWindow):
     def __init__(self):
@@ -63,7 +63,7 @@ class Pdm(QMainWindow):
         # меню Планирование
         plan_menu = menubar.addMenu('Планирование')
         # план исходя из имеющихся запасов
-        plan1_action = QAction('План производства с учетом запасов',self)
+        plan1_action = QAction('План выпуска',self)
         plan1_action.triggered.connect(self.plan1)
         plan_menu.addAction(plan1_action)
 
@@ -133,7 +133,7 @@ class Pdm(QMainWindow):
         self.prod_rep.show()
 
     def plan1(self):
-        self._plan1 = Plan1()
+        self._plan1 = Plan()
         self._plan1.show()
 
 
