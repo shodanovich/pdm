@@ -11,6 +11,7 @@ import costs        # нормативы затрат
 from prod_report import ProdReport
 from purchases import Purchases
 from plan import Plan
+from price import Price
 
 class Pdm(QMainWindow):
     def __init__(self):
@@ -41,6 +42,10 @@ class Pdm(QMainWindow):
         purchases_action = QAction('&Закупки, списание', self)
         purchases_action.triggered.connect(self.purchases)
         res_menu.addAction(purchases_action)
+        # цена изделий
+        price_action = QAction('&Цена изделий', self)
+        price_action.triggered.connect(self.price)
+        res_menu.addAction(price_action)
 
         # меню нормативов
         norm_menu = menubar.addMenu('&Нормативы')
@@ -94,7 +99,15 @@ class Pdm(QMainWindow):
                                   }
         params['select_query'] = ''
         self.purchases = Purchases(params)
-        #purchases.show()
+
+    def price(self):
+        params = {}
+        params['table_params'] = {'title': 'Цены изделий',
+                                  'columnnames':
+                                      'Код, Наименование, , Ед.\nизм., Цена'
+                                  }
+        params['select_query'] = ''
+        self.price = Price(params)
 
     def costs(self):
         """

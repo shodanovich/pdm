@@ -87,4 +87,15 @@ def get_resources():
     """
     return(read_table(query))
 
+def get_prod():
+    # изделия
+    query = """
+       SELECT id, name, measure FROM resources
+       WHERE NOT EXISTS(
+          SELECT res1_id from costs
+          WHERE res1_id = resources.id
+          )
+       ORDER BY name
+       """
+    return(read_table(query))
 

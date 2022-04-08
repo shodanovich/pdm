@@ -14,9 +14,18 @@ class Plan(QWidget):
         self.setWindowTitle('План выпуска')  # заголовок окна
         self.date_pl = QDateEdit(date.today())
         hbox1 = QHBoxLayout()
-        hbox1.addWidget(QLabel("Период с "))
+        hbox1.addWidget(QLabel("План на "))
         hbox1.addWidget(self.date_pl)
         hbox1.addStretch()
+        # кнопки выбора критерия оптимизации
+        self.rb1 = QRadioButton('Максимум выпуска')
+        self.rb2 = QRadioButton('Максимум прибыли')
+        self.rb1.setChecked(True)
+
+        hbox2 = QHBoxLayout()
+        hbox2.addWidget(self.rb1)
+        hbox2.addWidget(self.rb2)
+        hbox1.addLayout(hbox2)
         btn_start = QPushButton("Сформировать")
         btn_start.clicked.connect(self.start_pl)
         hbox1.addWidget(btn_start)
@@ -48,11 +57,16 @@ class Plan(QWidget):
         header.setSectionResizeMode(1, QHeaderView.Stretch)
         tab_plan.verticalHeader().setHidden(True)   # нет боковым заголовкам
         self.table_plan.itemChanged.connect(self.on_change_plan)
+        # вывод целевой функции
+        self.label_fun = QLabel()
+        vbox1 = QVBoxLayout()
+        vbox1.addWidget(tab_plan)
+        vbox1.addWidget(self.label_fun)
 
         hbox2 = QHBoxLayout()
         # пропорции 3:2
         hbox2.addWidget(tab_res,3)
-        hbox2.addWidget(tab_plan,2)
+        hbox2.addLayout(vbox1,2)
 
         # всё в вертикальный бокс
         self.vbox = QVBoxLayout()
@@ -63,11 +77,10 @@ class Plan(QWidget):
         # заполняем таблицы запасов и изделий
         self.init_tables()
 
-        # заполняем таблицу запасов
         self.show()
 
     def init_tables(self):
-        lst_prod = self.get_prod()
+        lst_prod = get_prod()
         zlst = list(zip(*lst_prod))  # транспонируем список
         ids = zlst[0]  # коды изделий
         # заполняем таблицу плана
@@ -80,36 +93,25 @@ class Plan(QWidget):
 
 
         # запасы ресурсов
-        lst_inv = self.get_inventory(ids) # получить ресурсы, имеющиеся в наличии
+        self.lst_inv = self.get_inventory(ids) # получить ресурсы, имеющиеся в наличии
         # это величина запасов
-        rhs_ineq = list(map(lambda x: VBN if x[2] == 0 else x[2], lst_inv))
+        rhs_ineq = list(map(lambda x: VBN if x[2] == 0 else x[2], self.lst_inv))
         # заполняем таблицу ресурсов
-        for i in range(len(lst_inv)):
+        for i in range(len(self.lst_inv)):
             self.table_res.insertRow(i)
-            self.table_res.setItem(i,0, QTableWidgetItem(str(lst_inv[i][0])))
-            self.table_res.setItem(i,1, QTableWidgetItem(lst_inv[i][1]))
+            self.table_res.setItem(i,0, QTableWidgetItem(str(self.lst_inv[i][0])))
+            self.table_res.setItem(i,1, QTableWidgetItem(self.lst_inv[i][1]))
             self.table_res.setItem(i,2,
                         QTableWidgetItem(str('{:>15.3f}'.format(rhs_ineq[i]))))
 
     def on_change_plan(self):
         # пересчитываем потребность в ресурсах
-        lst_prod = self.get_prod()
+        lst_prod = get_prod()
         ids = list(zip(*lst_prod))[0]  # коды изделий
         costs = get_costs(ids)  # затраты на ед.
         self.res_plan(costs, lst_prod)  # затраты ресурсов на план
         pass
 
-    def get_prod(self):
-        # изделия
-        query = """
-           SELECT id, name FROM resources
-           WHERE NOT EXISTS(
-              SELECT res1_id from costs
-              WHERE res1_id = resources.id
-              )
-           ORDER BY name
-           """
-        return(read_table(query))
 
     def get_inventory(self, ids):
         read_table("SET SQL_MODE = ''")
@@ -128,12 +130,41 @@ class Plan(QWidget):
 
     def start_pl(self):
         # 1. obj[]. Целевая функция.
-        lst_prod = self.get_prod()
+        lst_prod = get_prod()
         zlst = list(zip(*lst_prod))  # транспонируем список
         ids = zlst[0]  # коды изделий
-        obj = [-1 for j in range(len(ids))]  # максимизируем величину выпуска
-        # 2. lhs_ineq. Левая часть ограничений по ресурсам. Это затраты ресурсов.
         costs = get_costs(ids)  # затраты на ед.
+
+        if self.rb1.isChecked():    # максимизируем величину выпуска
+            obj = [-1 for j in range(len(ids))]
+        elif self.rb2.isChecked():  # максимизируем прибыль
+            # затраты на изделия
+            lst_costs = []
+            for id in ids:
+                for row in costs:
+                    if row[1] == id:
+                        # стоимость затрат:
+                        c = list(filter(lambda x: row[0] in x if row[0] == x[0]
+                        else None, self.lst_inv))
+                        lst_i = [row[0], row[1], row[2]*c[0][3]]
+                        lst_costs.append(lst_i)
+            # суммируем по изделию
+            lst_costs = pack(lst_costs,[1],*[2])
+            # находим цены изделий
+            date_ = self.date_pl.date().toPyDate()
+            query = f"""
+            SELECT id, price, date_price FROM prices 
+            WHERE date_price <= DATE('{str(date_)}')
+            ORDER BY date_price DESC
+            """
+            prices = read_table(query)
+            # финальная obj:
+            obj = []
+            for id in ids:
+                for j in range(len(lst_costs)):
+                    if id == lst_costs[j][0]:
+                        obj.append(-prices[j][1] + lst_costs[j][1])
+        # 2. lhs_ineq. Левая часть ограничений по ресурсам. Это затраты ресурсов.
         # формируем матрицу затрат
         lhs_ineq = []
         i = 0
@@ -151,7 +182,7 @@ class Plan(QWidget):
             rhs_ineq.append(row)
 
         # 4. Ограничений-равенств не будет
-        # 5. bnd. Область определения переменных  0 : +inf
+        # 5. bnd. Область определения переменных  0 ... +inf
         bnd = [(0, float('inf')) for j in range(len(ids))]
 
         # получаем план
@@ -159,19 +190,21 @@ class Plan(QWidget):
                 A_ub = lhs_ineq,      # левые коэф. из ограничений-неравенств
                 b_ub = rhs_ineq,      # правые коэф. из ограничений-неравенств
                 bounds = bnd,         # области значений переменных
-                method="simplex")
+                method="revised simplex")
 
         # заполнияем список продукции и таблицу плана
-        lst_prod = self.get_prod()  # коды и наименования готовой продукции
+        lst_prod = get_prod()  # коды и наименования готовой продукции
 
         self.table_plan.blockSignals(True)
         for i in range(len(lst_prod)):
             # дополняем их планом
             self.table_plan.setItem(i, 2,
                       QTableWidgetItem(str('{:>15.3f}'.format(opt.x[i]))))
-            #lst_prod[i].append(float(self.table_plan.item(i,2).text()))
 
         self.table_plan.blockSignals(False)
+        # # дополняем таблицу плана значением целевой функции
+        self.label_fun.setText("Значение целевой функции:" +
+                               '{:>15.3f}'.format(-opt.fun))
         # потребности в ресурсах на план
         self.res_plan(costs, lst_prod)
 
@@ -184,7 +217,7 @@ class Plan(QWidget):
         for i, cost in enumerate(costs):
             prod_i = list(filter(lambda x: cost[1] in x if cost[1] == x[0]
                         else None, lst_prod))
-            cost[2] *= prod_i[0][2]
+            cost[2] *= prod_i[0][3]
             it_lst.append(cost)
 
         it_lst = pack(it_lst,[0],*[2])
@@ -198,9 +231,3 @@ class Plan(QWidget):
             self.table_res.setItem(i,3,
                     QTableWidgetItem(str('{:>15.3f}'.format(lst_i[0][1]))))
         pass
-
-    def flt(self,id1,id2):
-        if id1 == id2:
-            return True
-        else:
-            return None

@@ -1,10 +1,7 @@
-from mysql.connector import connect, Error
 from PyQt5 import QtWidgets
-from PyQt5.QtWidgets import (QWidget, QPushButton, QComboBox,
-                             QHBoxLayout, QVBoxLayout, QMessageBox)
+from PyQt5.QtWidgets import *
 
 import edit_res
-from mysql_dbconf import get_db_params
 from commons import *
 
 class EditTables(QWidget):
@@ -12,7 +9,7 @@ class EditTables(QWidget):
     Чтение таблицы из БД, вывод на экран и редактирование
     :param params: параметры таблицы в БД и QTableWidget
     """
-    def __init__(self, params={}):
+    def __init__(self, params):
         super().__init__()
         # разбор параметров
         table_params = params['table_params']

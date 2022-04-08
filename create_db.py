@@ -41,7 +41,13 @@ def create_db():
                 id INT,
                 count FLOAT,
                 price FLOAT,
-                date_purchase DATE);    
+                date_purchase DATE
+                );    
+            CREATE TABLE prices (
+                id INT,
+                price FLOAT,
+                date_price DATE
+                );
                 """
         cursor.execute(create_tables_query)
     except Error as e:
